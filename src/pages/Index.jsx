@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Search, Filter, Download, TreePine, GitBranch, Table } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,10 +10,8 @@ import SankeyView from '@/components/SankeyView';
 import TabularView from '@/components/TabularView';
 import { mockWorkflowData } from '@/data/mockData';
 
-type ViewType = 'tree' | 'sankey' | 'table';
-
 const Index = () => {
-  const [activeView, setActiveView] = useState<ViewType>('tree');
+  const [activeView, setActiveView] = useState('tree');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProject, setFilterProject] = useState('all');
   const [filterState, setFilterState] = useState('all');

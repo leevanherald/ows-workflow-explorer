@@ -1,16 +1,11 @@
 
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { WorkflowData } from '@/data/mockData';
 
-interface SankeyViewProps {
-  data: WorkflowData[];
-}
-
-const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
+const SankeyView = ({ data }) => {
   // Group data for flow visualization
   const getFlowData = () => {
-    const flows: { [key: string]: number } = {};
+    const flows = {};
     
     data.forEach(item => {
       const flowKey = `${item.directorProject} → ${item.workflow} → ${item.state}`;
@@ -28,7 +23,7 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
     return { projects, workflows, states };
   };
 
-  const getNodeColor = (node: string, type: 'project' | 'workflow' | 'state') => {
+  const getNodeColor = (node, type) => {
     const colors = {
       project: ['bg-blue-500', 'bg-blue-600', 'bg-blue-700'],
       workflow: ['bg-green-500', 'bg-green-600', 'bg-green-700'],
