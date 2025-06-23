@@ -29,10 +29,7 @@ const Login = () => {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
         {/* Animated background pattern */}
         <div className="absolute inset-0 opacity-30">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 25px 25px, rgba(255,255,255,0.1) 2px, transparent 0)`,
-            backgroundSize: '50px 50px'
-          }} />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10" />
         </div>
         
         {/* Floating elements */}
@@ -108,7 +105,7 @@ const Login = () => {
               <div className="flex justify-between items-center">
                 <Checkbox
                   isSelected={rememberMe}
-                  onChange={setRememberMe}
+                  onValueChange={setRememberMe}
                   size="sm"
                   classNames={{
                     label: "text-gray-600 text-sm"
