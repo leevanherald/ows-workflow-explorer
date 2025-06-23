@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, Filter, Download, TreePine, GitBranch, Table } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,10 +49,19 @@ const Index = () => {
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">OWS Workflow Explorer</h1>
-          <p className="text-slate-600 text-lg">
-            Visualize and analyze end-to-end alert workflows from Director Projects to Final States
-          </p>
+          <div className="flex items-center gap-4 mb-4">
+            <img 
+              src="/lovable-uploads/07918255-54de-4fea-b309-b3562bb915c4.png" 
+              alt="Barclays Logo" 
+              className="h-12 w-auto"
+            />
+            <div>
+              <h1 className="text-4xl font-bold text-slate-900 mb-2">OWS Workflow Explorer</h1>
+              <p className="text-slate-600 text-lg">
+                Visualize and analyze end-to-end alert workflows from Director Projects to Final States
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Controls */}
