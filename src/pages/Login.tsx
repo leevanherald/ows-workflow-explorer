@@ -1,10 +1,11 @@
-
 import React, { useState } from 'react';
 import { Eye, EyeOff, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, TextField, Button as MuiButton, Container, Box, Typography } from '@mui/material';
 import { Button as AntButton, Form as AntForm, Input as AntInput, Checkbox as AntCheckbox } from 'antd';
-import { ChakraProvider, Button as ChakraButton, Link as ChakraLink } from '@chakra-ui/react';
+import { ChakraProvider, extendTheme, Button as ChakraButton, Link as ChakraLink } from '@chakra-ui/react';
 import 'antd/dist/reset.css';
+
+const theme = extendTheme({});
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +19,7 @@ const Login = () => {
   };
 
   return (
-    <ChakraProvider>
+    <ChakraProvider theme={theme}>
       <div className="min-h-screen flex items-center justify-center p-4" 
            style={{
              background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #334155 100%)',
