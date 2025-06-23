@@ -1,162 +1,154 @@
 
 import React, { useState } from 'react';
-import { Eye, EyeOff, Shield } from 'lucide-react';
-import { Button, Form, Input, Checkbox, Card, Typography, Space, Flex } from 'antd';
-
-const { Title, Text } = Typography;
+import { Eye, EyeOff, Shield, Lock, User } from 'lucide-react';
+import { 
+  Card, 
+  CardBody, 
+  Input, 
+  Button, 
+  Checkbox, 
+  Link,
+  Divider,
+  NextUIProvider
+} from '@nextui-org/react';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
-  const handleSubmit = (values: any) => {
-    console.log('Login attempt:', values);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Login attempt:', { username, password, rememberMe });
     // Add login logic here
   };
 
   return (
-    <div 
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #334155 100%)',
-        position: 'relative'
-      }}
-    >
-      <div 
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.02%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          opacity: 0.3
-        }}
-      />
-      
-      <Card 
-        style={{ 
-          width: '100%',
-          maxWidth: '480px',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-          backdropFilter: 'blur(10px)',
-          position: 'relative',
-          zIndex: 1
-        }}
-      >
-        <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
-          <div>
-            <div 
-              style={{ 
-                backgroundColor: 'white', 
-                padding: '16px', 
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                display: 'inline-block',
-                marginBottom: '24px'
-              }}
-            >
-              <img 
-                src="/lovable-uploads/e99d473b-f728-401b-951d-2fccd7d2a50f.png" 
-                alt="Barclays Logo" 
-                style={{ height: '64px', width: 'auto' }}
-              />
+    <NextUIProvider>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
+        {/* Animated background pattern */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.03"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-30" />
+        
+        {/* Floating elements */}
+        <div className="absolute top-20 left-20 w-32 h-32 bg-blue-500/10 rounded-full blur-xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-48 h-48 bg-purple-500/10 rounded-full blur-xl animate-pulse delay-1000" />
+        
+        <Card className="w-full max-w-md bg-white/95 backdrop-blur-md shadow-2xl border-0">
+          <CardBody className="p-8">
+            {/* Logo and Header */}
+            <div className="text-center mb-8">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-2xl inline-block mb-6 shadow-lg">
+                <img 
+                  src="/lovable-uploads/e99d473b-f728-401b-951d-2fccd7d2a50f.png" 
+                  alt="Barclays Logo" 
+                  className="h-12 w-auto filter brightness-0 invert"
+                />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                OWS Workflow Explorer
+              </h1>
+              <p className="text-gray-600 text-sm mb-2">
+                Secure access to your workflow management system
+              </p>
+              <div className="flex items-center justify-center gap-2 text-gray-500">
+                <Shield size={14} />
+                <span className="text-xs">Enterprise-grade security</span>
+              </div>
             </div>
-            <Title level={2} style={{ margin: '0 0 8px 0', color: '#1f2937' }}>
-              OWS Workflow Explorer
-            </Title>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              Secure access to your workflow management system
-            </Text>
-            <Flex align="center" justify="center" gap={8} style={{ marginTop: '8px' }}>
-              <Shield size={16} color="#666" />
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                Enterprise-grade security
-              </Text>
-            </Flex>
-          </div>
-          
-          <Form 
-            layout="vertical" 
-            onFinish={handleSubmit}
-            style={{ width: '100%' }}
-          >
-            <Form.Item
-              label="Username"
-              name="username"
-              rules={[{ required: true, message: 'Please input your username!' }]}
-            >
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
               <Input
-                size="large"
+                type="text"
+                label="Username"
                 placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                startContent={<User className="text-gray-400" size={18} />}
+                variant="bordered"
+                size="lg"
+                classNames={{
+                  input: "text-gray-700",
+                  inputWrapper: "border-gray-300 hover:border-blue-400 focus-within:border-blue-500"
+                }}
+                isRequired
               />
-            </Form.Item>
-            
-            <Form.Item
-              label="Password"
-              name="password"
-              rules={[{ required: true, message: 'Please input your password!' }]}
-            >
-              <Input.Password
-                size="large"
+
+              <Input
+                type={showPassword ? "text" : "password"}
+                label="Password"
                 placeholder="Enter your password"
-                iconRender={(visible) => visible ? <Eye size={16} /> : <EyeOff size={16} />}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                startContent={<Lock className="text-gray-400" size={18} />}
+                endContent={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+                variant="bordered"
+                size="lg"
+                classNames={{
+                  input: "text-gray-700",
+                  inputWrapper: "border-gray-300 hover:border-blue-400 focus-within:border-blue-500"
+                }}
+                isRequired
               />
-            </Form.Item>
 
-            <Flex justify="space-between" align="center" style={{ marginBottom: '24px' }}>
-              <Checkbox>Keep me signed in</Checkbox>
-              <a href="#" style={{ color: '#1890ff', fontSize: '14px', fontWeight: 500 }}>
-                Need help?
-              </a>
-            </Flex>
+              <div className="flex justify-between items-center">
+                <Checkbox
+                  isSelected={rememberMe}
+                  onChange={setRememberMe}
+                  size="sm"
+                  classNames={{
+                    label: "text-gray-600 text-sm"
+                  }}
+                >
+                  Keep me signed in
+                </Checkbox>
+                <Link 
+                  href="#" 
+                  size="sm" 
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Need help?
+                </Link>
+              </div>
 
-            <Button 
-              type="primary" 
-              htmlType="submit"
-              size="large"
-              block
-              style={{
-                height: '48px',
-                fontSize: '16px',
-                fontWeight: 600,
-                background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                border: 'none'
-              }}
-            >
-              Sign In Securely
-            </Button>
-          </Form>
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 shadow-lg transform hover:scale-[1.02] transition-all duration-200"
+                size="lg"
+              >
+                Sign In Securely
+              </Button>
+            </form>
 
-          <div style={{ 
-            marginTop: '24px', 
-            paddingTop: '16px', 
-            borderTop: '1px solid #e0e0e0', 
-            textAlign: 'center' 
-          }}>
-            <Text type="secondary" style={{ fontSize: '14px', display: 'block', marginBottom: '4px' }}>
-              Authorized personnel only
-            </Text>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              For technical support, contact your system administrator
-            </Text>
-          </div>
-        </Space>
-      </Card>
-      
-      <div 
-        style={{
-          position: 'absolute', 
-          bottom: 0, 
-          left: 0, 
-          padding: '12px',
-          fontSize: '12px', 
-          color: 'rgba(255, 255, 255, 0.6)'
-        }}
-      >
-        © 2024 Barclays Bank PLC. All rights reserved.
+            <Divider className="my-6" />
+
+            {/* Footer */}
+            <div className="text-center space-y-2">
+              <p className="text-gray-600 text-sm font-medium">
+                Authorized personnel only
+              </p>
+              <p className="text-gray-500 text-xs">
+                For technical support, contact your system administrator
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+        
+        {/* Copyright */}
+        <div className="absolute bottom-4 left-4 text-white/60 text-xs">
+          © 2024 Barclays Bank PLC. All rights reserved.
+        </div>
       </div>
-    </div>
+    </NextUIProvider>
   );
 };
 
