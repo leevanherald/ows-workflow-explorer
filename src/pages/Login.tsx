@@ -24,11 +24,11 @@ const Login = () => {
       <Card className="w-full max-w-md shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
         <CardHeader className="text-center pb-8 pt-8">
           <div className="flex justify-center mb-8">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg">
+            <div className="bg-white p-4 rounded-2xl shadow-lg">
               <img 
-                src="/lovable-uploads/07918255-54de-4fea-b309-b3562bb915c4.png" 
+                src="/lovable-uploads/e99d473b-f728-401b-951d-2fccd7d2a50f.png" 
                 alt="Barclays Logo" 
-                className="h-12 w-auto filter brightness-0 invert"
+                className="h-16 w-auto"
               />
             </div>
           </div>
