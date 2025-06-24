@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Eye, EyeOff, Shield, Lock, User } from 'lucide-react';
 import { 
@@ -9,8 +8,8 @@ import {
   Checkbox, 
   Link,
   Divider,
-  NextUIProvider
-} from '@nextui-org/react';
+  HeroUIProvider
+} from '@heroui/react';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -25,7 +24,7 @@ const Login = () => {
   };
 
   return (
-    <NextUIProvider>
+    <HeroUIProvider>
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
         {/* Animated background pattern */}
         <div className="absolute inset-0 opacity-30">
@@ -150,7 +149,7 @@ const Login = () => {
           © 2024 Barclays Bank PLC. All rights reserved.
         </div>
       </div>
-    </NextUIProvider>
+    </HeroUIProvider>
   );
 };
 
