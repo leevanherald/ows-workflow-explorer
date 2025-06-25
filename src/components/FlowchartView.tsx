@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorkflowData } from '@/data/mockData';
-import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronRight, Plus, Minus } from 'lucide-react';
 
 interface FlowchartViewProps {
   data: WorkflowData[];
@@ -16,67 +16,63 @@ interface FlowNode {
   type: 'project' | 'feed' | 'source' | 'match' | 'workflow' | 'state';
   count: number;
   children?: FlowNode[];
+  expanded?: boolean;
 }
-
-type ViewStage = 'feeds' | 'sources' | 'matches' | 'workflows' | 'states';
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
-  const [currentStage, setCurrentStage] = useState<ViewStage>('feeds');
-  const [selectedFeed, setSelectedFeed] = useState<string>('');
-  const [selectedSource, setSelectedSource] = useState<string>('');
-  const [selectedMatch, setSelectedMatch] = useState<string>('');
-  const [selectedWorkflow, setSelectedWorkflow] = useState<string>('');
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   // Get unique projects for selection
   const projects = useMemo(() => {
     return [...new Set(data.map(item => item.directorProject))];
   }, [data]);
 
-  // Build hierarchical flow data for selected project
+  // Build hierarchical flow data
   const flowData = useMemo(() => {
-    const filteredData = selectedProject === 'all' 
+    let filteredData = selectedProject === 'all' 
       ? data 
       : data.filter(item => item.directorProject === selectedProject);
 
-    if (filteredData.length === 0) return null;
+    if (filteredData.length === 0) return [];
 
-    // Group by Director Feed Name
-    const feedGroups = filteredData.reduce((acc, item) => {
-      const feedName = item.directorFeedname || 'Unknown Feed';
-      if (!acc[feedName]) {
-        acc[feedName] = [];
+    // Group by Director Project
+    const projectGroups = filteredData.reduce((acc, item) => {
+      if (!acc[item.directorProject]) {
+        acc[item.directorProject] = [];
       }
-      acc[feedName].push(item);
+      acc[item.directorProject].push(item);
       return acc;
     }, {} as Record<string, WorkflowData[]>);
 
-    // Build flow nodes for each feed
-    const feedNodes: FlowNode[] = Object.entries(feedGroups).map(([feedName, feedItems]) => {
-      // Group by source
-      const sourceGroups = feedItems.reduce((acc, item) => {
-        const source = item.scmSource || 'Unknown Source';
-        if (!acc[source]) {
-          acc[source] = [];
+    return Object.entries(projectGroups).map(([projectName, projectItems]) => {
+      // Group by Director Feed Name
+      const feedGroups = projectItems.reduce((acc, item) => {
+        const feedName = item.directorFeedname || 'Unknown Feed';
+        if (!acc[feedName]) {
+          acc[feedName] = [];
         }
-        acc[source].push(item);
+        acc[feedName].push(item);
         return acc;
       }, {} as Record<string, WorkflowData[]>);
 
-      const sourceNodes: FlowNode[] = Object.entries(sourceGroups).map(([source, sourceItems]) => {
-        // Group by match process
-        const matchGroups = sourceItems.reduce((acc, item) => {
-          const matchProcess = item.matchProcess || 'Unknown Process';
-          if (!acc[matchProcess]) {
-            acc[matchProcess] = [];
+      const feedNodes: FlowNode[] = Object.entries(feedGroups).map(([feedName, feedItems]) => {
+        // Group by source
+        const sourceGroups = feedItems.reduce((acc, item) => {
+          const source = item.scmSource || 'Unknown Source';
+          if (!acc[source]) {
+            acc[source] = [];
           }
-          acc[matchProcess].push(item);
+          acc[source].push(item);
           return acc;
         }, {} as Record<string, WorkflowData[]>);
 
-        const matchNodes: FlowNode[] = Object.entries(matchGroups).map(([matchProcess, matchItems]) => {
-          // Group by workflow
-          const workflowGroups = matchItems.reduce((acc, item) => {
+        const sourceNodes: FlowNode[] = Object.entries(sourceGroups).map(([source, sourceItems]) => {
+          // Group by match process (1:1 with source)
+          const matchProcess = sourceItems[0]?.matchProcess || 'Unknown Process';
+          
+          // Group by workflow (1:1 with source/match)
+          const workflowGroups = sourceItems.reduce((acc, item) => {
             if (!acc[item.workflow]) {
               acc[item.workflow] = [];
             }
@@ -85,7 +81,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           }, {} as Record<string, WorkflowData[]>);
 
           const workflowNodes: FlowNode[] = Object.entries(workflowGroups).map(([workflow, workflowItems]) => {
-            // Group by final state
+            // Group by final state (1:many with workflow)
             const stateGroups = workflowItems.reduce((acc, item) => {
               if (!acc[item.state]) {
                 acc[item.state] = [];
@@ -95,14 +91,14 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             }, {} as Record<string, WorkflowData[]>);
 
             const stateNodes: FlowNode[] = Object.entries(stateGroups).map(([state, stateItems]) => ({
-              id: `${feedName}-${source}-${matchProcess}-${workflow}-${state}`,
+              id: `${projectName}-${feedName}-${source}-${matchProcess}-${workflow}-${state}`,
               label: state,
               type: 'state' as const,
               count: stateItems.reduce((sum, item) => sum + (item.alertCount || 0), 0)
             }));
 
             return {
-              id: `${feedName}-${source}-${matchProcess}-${workflow}`,
+              id: `${projectName}-${feedName}-${source}-${matchProcess}-${workflow}`,
               label: workflow,
               type: 'workflow' as const,
               count: workflowItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
@@ -111,276 +107,187 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           });
 
           return {
-            id: `${feedName}-${source}-${matchProcess}`,
-            label: matchProcess,
-            type: 'match' as const,
-            count: matchItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
+            id: `${projectName}-${feedName}-${source}`,
+            label: `${source} → ${matchProcess}`,
+            type: 'source' as const,
+            count: sourceItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
             children: workflowNodes
           };
         });
 
         return {
-          id: `${feedName}-${source}`,
-          label: source,
-          type: 'source' as const,
-          count: sourceItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
-          children: matchNodes
+          id: `${projectName}-${feedName}`,
+          label: feedName,
+          type: 'feed' as const,
+          count: feedItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
+          children: sourceNodes
         };
       });
 
       return {
-        id: feedName,
-        label: feedName,
-        type: 'feed' as const,
-        count: feedItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
-        children: sourceNodes
+        id: projectName,
+        label: projectName,
+        type: 'project' as const,
+        count: projectItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
+        children: feedNodes
       };
     });
-
-    return feedNodes;
   }, [data, selectedProject]);
+
+  const toggleExpanded = (nodeId: string) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(nodeId)) {
+      newExpanded.delete(nodeId);
+    } else {
+      newExpanded.add(nodeId);
+    }
+    setExpandedNodes(newExpanded);
+  };
+
+  const expandAll = () => {
+    const allNodeIds = new Set<string>();
+    const collectIds = (nodes: FlowNode[]) => {
+      nodes.forEach(node => {
+        allNodeIds.add(node.id);
+        if (node.children) {
+          collectIds(node.children);
+        }
+      });
+    };
+    collectIds(flowData);
+    setExpandedNodes(allNodeIds);
+  };
+
+  const collapseAll = () => {
+    setExpandedNodes(new Set());
+  };
 
   const getNodeColor = (type: string) => {
     const colors = {
-      feed: 'bg-blue-500 hover:bg-blue-600',
-      source: 'bg-green-500 hover:bg-green-600',
-      match: 'bg-purple-500 hover:bg-purple-600',
-      workflow: 'bg-orange-500 hover:bg-orange-600',
-      state: 'bg-red-500 hover:bg-red-600'
+      project: 'bg-slate-600 hover:bg-slate-700 border-slate-200',
+      feed: 'bg-blue-500 hover:bg-blue-600 border-blue-200',
+      source: 'bg-green-500 hover:bg-green-600 border-green-200',
+      workflow: 'bg-orange-500 hover:bg-orange-600 border-orange-200',
+      state: 'bg-red-500 hover:bg-red-600 border-red-200'
     };
-    return colors[type as keyof typeof colors] || 'bg-gray-500 hover:bg-gray-600';
+    return colors[type as keyof typeof colors] || 'bg-gray-500 hover:bg-gray-600 border-gray-200';
   };
 
-  const getCurrentStageData = () => {
-    if (!flowData) return [];
+  const renderNode = (node: FlowNode, level: number = 0) => {
+    const isExpanded = expandedNodes.has(node.id);
+    const hasChildren = node.children && node.children.length > 0;
+    const marginLeft = level * 40;
 
-    switch (currentStage) {
-      case 'feeds':
-        return flowData;
-      case 'sources':
-        if (!selectedFeed) return [];
-        const feedNode = flowData.find(f => f.label === selectedFeed);
-        return feedNode?.children || [];
-      case 'matches':
-        if (!selectedFeed || !selectedSource) return [];
-        const feedForMatch = flowData.find(f => f.label === selectedFeed);
-        const sourceNode = feedForMatch?.children?.find(s => s.label === selectedSource);
-        return sourceNode?.children || [];
-      case 'workflows':
-        if (!selectedFeed || !selectedSource || !selectedMatch) return [];
-        const feedForWorkflow = flowData.find(f => f.label === selectedFeed);
-        const sourceForWorkflow = feedForWorkflow?.children?.find(s => s.label === selectedSource);
-        const matchNode = sourceForWorkflow?.children?.find(m => m.label === selectedMatch);
-        return matchNode?.children || [];
-      case 'states':
-        if (!selectedFeed || !selectedSource || !selectedMatch || !selectedWorkflow) return [];
-        const feedForState = flowData.find(f => f.label === selectedFeed);
-        const sourceForState = feedForState?.children?.find(s => s.label === selectedSource);
-        const matchForState = sourceForState?.children?.find(m => m.label === selectedMatch);
-        const workflowNode = matchForState?.children?.find(w => w.label === selectedWorkflow);
-        return workflowNode?.children || [];
-      default:
-        return [];
-    }
-  };
+    return (
+      <div key={node.id} className="mb-2">
+        <div 
+          className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${getNodeColor(node.type)} text-white shadow-sm`}
+          style={{ marginLeft: `${marginLeft}px` }}
+        >
+          {hasChildren && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleExpanded(node.id)}
+              className="p-0 h-6 w-6 text-white hover:bg-white/20"
+            >
+              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </Button>
+          )}
+          
+          <div className="flex-1">
+            <div className="font-semibold text-sm">{node.label}</div>
+            <div className="text-xs opacity-90">{node.count.toLocaleString()} alerts</div>
+          </div>
 
-  const handleNodeClick = (node: FlowNode) => {
-    switch (currentStage) {
-      case 'feeds':
-        setSelectedFeed(node.label);
-        setCurrentStage('sources');
-        break;
-      case 'sources':
-        setSelectedSource(node.label);
-        setCurrentStage('matches');
-        break;
-      case 'matches':
-        setSelectedMatch(node.label);
-        setCurrentStage('workflows');
-        break;
-      case 'workflows':
-        setSelectedWorkflow(node.label);
-        setCurrentStage('states');
-        break;
-    }
-  };
+          {level < 4 && hasChildren && (
+            <ArrowRight className="w-4 h-4 opacity-60" />
+          )}
+        </div>
 
-  const getBreadcrumb = () => {
-    const crumbs = [];
-    if (selectedProject !== 'all') crumbs.push(selectedProject);
-    if (selectedFeed) crumbs.push(selectedFeed);
-    if (selectedSource) crumbs.push(selectedSource);
-    if (selectedMatch) crumbs.push(selectedMatch);
-    if (selectedWorkflow) crumbs.push(selectedWorkflow);
-    return crumbs;
-  };
-
-  const resetToStage = (stage: ViewStage) => {
-    setCurrentStage(stage);
-    if (stage === 'feeds') {
-      setSelectedFeed('');
-      setSelectedSource('');
-      setSelectedMatch('');
-      setSelectedWorkflow('');
-    } else if (stage === 'sources') {
-      setSelectedSource('');
-      setSelectedMatch('');
-      setSelectedWorkflow('');
-    } else if (stage === 'matches') {
-      setSelectedMatch('');
-      setSelectedWorkflow('');
-    } else if (stage === 'workflows') {
-      setSelectedWorkflow('');
-    }
-  };
-
-  const getStageTitle = () => {
-    const titles = {
-      feeds: 'Feed Names',
-      sources: 'Sources',
-      matches: 'Match Processes',
-      workflows: 'Workflows',
-      states: 'End States'
-    };
-    return titles[currentStage];
+        {isExpanded && hasChildren && (
+          <div className="mt-2">
+            {node.children!.map(child => renderNode(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-2">Workflow Flowchart</h3>
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">Interactive Workflow Flowchart</h3>
         <p className="text-sm text-slate-600 mb-4">
-          Navigate through the workflow stages to explore the complete data flow.
+          Explore the complete workflow hierarchy with expandable sections.
         </p>
         
-        <Select value={selectedProject} onValueChange={setSelectedProject}>
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Select a project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map(project => (
-              <SelectItem key={project} value={project}>{project}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+        <div className="flex items-center gap-4">
+          <Select value={selectedProject} onValueChange={setSelectedProject}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Select a project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map(project => (
+                <SelectItem key={project} value={project}>{project}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-      {/* Navigation Bar */}
-      <div className="flex items-center gap-2 mb-6 p-4 bg-slate-100 rounded-lg">
-        <Button
-          variant={currentStage === 'feeds' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => resetToStage('feeds')}
-        >
-          Feeds
-        </Button>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-        <Button
-          variant={currentStage === 'sources' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => resetToStage('sources')}
-          disabled={!selectedFeed}
-        >
-          Sources
-        </Button>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-        <Button
-          variant={currentStage === 'matches' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => resetToStage('matches')}
-          disabled={!selectedSource}
-        >
-          Matches
-        </Button>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-        <Button
-          variant={currentStage === 'workflows' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => resetToStage('workflows')}
-          disabled={!selectedMatch}
-        >
-          Workflows
-        </Button>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-        <Button
-          variant={currentStage === 'states' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => resetToStage('states')}
-          disabled={!selectedWorkflow}
-        >
-          States
-        </Button>
-      </div>
-
-      {/* Breadcrumb */}
-      {getBreadcrumb().length > 0 && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-slate-600">
-          <span>Path:</span>
-          {getBreadcrumb().map((crumb, index) => (
-            <React.Fragment key={index}>
-              <span className="font-medium">{crumb}</span>
-              {index < getBreadcrumb().length - 1 && <ChevronRight className="w-3 h-3" />}
-            </React.Fragment>
-          ))}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={expandAll}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Expand All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={collapseAll}
+              className="flex items-center gap-2"
+            >
+              <Minus className="w-4 h-4" />
+              Collapse All
+            </Button>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        <h4 className="text-xl font-semibold text-slate-900 mb-4 text-center">
-          {getStageTitle()}
-        </h4>
-        
-        <div className="flex-1 flex items-center justify-center">
-          {getCurrentStageData().length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full max-w-6xl">
-              {getCurrentStageData().map(node => (
-                <div
-                  key={node.id}
-                  className={`${getNodeColor(node.type)} text-white p-6 rounded-lg shadow-lg cursor-pointer transition-all duration-200 transform hover:scale-105`}
-                  onClick={() => handleNodeClick(node)}
-                >
-                  <div className="text-center">
-                    <div className="font-semibold text-lg mb-2">{node.label}</div>
-                    <div className="text-sm opacity-90">{node.count.toLocaleString()} alerts</div>
-                    {currentStage !== 'states' && (
-                      <div className="mt-2 text-xs opacity-75">Click to expand</div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500">
-              <p className="text-lg mb-2">No data available</p>
-              <p className="text-sm">
-                {currentStage === 'feeds' 
-                  ? 'Select a project to view workflow data'
-                  : 'Navigate back to select items from previous stages'
-                }
-              </p>
-            </div>
-          )}
-        </div>
+      <div className="flex-1 overflow-auto">
+        {flowData.length > 0 ? (
+          <div className="space-y-2">
+            {flowData.map(node => renderNode(node))}
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 py-12">
+            <p className="text-lg mb-2">No workflow data available</p>
+            <p className="text-sm">Select a project to view workflow data</p>
+          </div>
+        )}
       </div>
 
       {/* Legend */}
-      <div className="mt-6 p-4 bg-white rounded-lg border">
+      <div className="mt-4 p-4 bg-white rounded-lg border">
         <h4 className="font-semibold text-slate-900 mb-3">Legend</h4>
         <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-slate-600 rounded"></div>
+            <span className="text-sm">Director Project</span>
+          </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-500 rounded"></div>
             <span className="text-sm">Feed Names</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span className="text-sm">Sources</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-purple-500 rounded"></div>
-            <span className="text-sm">Match Process</span>
+            <span className="text-sm">Source → Match Process</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-orange-500 rounded"></div>
