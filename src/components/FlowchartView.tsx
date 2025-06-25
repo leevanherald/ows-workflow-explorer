@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorkflowData } from '@/data/mockData';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface FlowchartViewProps {
   data: WorkflowData[];
@@ -17,8 +18,15 @@ interface FlowNode {
   children?: FlowNode[];
 }
 
+type ViewStage = 'feeds' | 'sources' | 'matches' | 'workflows' | 'states';
+
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [currentStage, setCurrentStage] = useState<ViewStage>('feeds');
+  const [selectedFeed, setSelectedFeed] = useState<string>('');
+  const [selectedSource, setSelectedSource] = useState<string>('');
+  const [selectedMatch, setSelectedMatch] = useState<string>('');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string>('');
 
   // Get unique projects for selection
   const projects = useMemo(() => {
@@ -134,120 +142,116 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
   const getNodeColor = (type: string) => {
     const colors = {
-      feed: 'bg-blue-500',
-      source: 'bg-green-500',
-      match: 'bg-purple-500',
-      workflow: 'bg-orange-500',
-      state: 'bg-red-500'
+      feed: 'bg-blue-500 hover:bg-blue-600',
+      source: 'bg-green-500 hover:bg-green-600',
+      match: 'bg-purple-500 hover:bg-purple-600',
+      workflow: 'bg-orange-500 hover:bg-orange-600',
+      state: 'bg-red-500 hover:bg-red-600'
     };
-    return colors[type as keyof typeof colors] || 'bg-gray-500';
+    return colors[type as keyof typeof colors] || 'bg-gray-500 hover:bg-gray-600';
   };
 
-  const renderColumn = (nodes: FlowNode[], title: string, type: string) => {
-    return (
-      <div className="flex flex-col items-center min-w-[200px]">
-        <h4 className="font-semibold text-slate-700 mb-4 text-center">{title}</h4>
-        <div className="space-y-3">
-          {nodes.map(node => (
-            <div key={node.id} className={`${getNodeColor(type)} text-white px-4 py-3 rounded-lg shadow-md text-center min-w-[150px]`}>
-              <div className="font-medium text-sm">{node.label}</div>
-              <div className="text-xs opacity-90">{node.count.toLocaleString()}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const getCurrentStageData = () => {
+    if (!flowData) return [];
+
+    switch (currentStage) {
+      case 'feeds':
+        return flowData;
+      case 'sources':
+        if (!selectedFeed) return [];
+        const feedNode = flowData.find(f => f.label === selectedFeed);
+        return feedNode?.children || [];
+      case 'matches':
+        if (!selectedFeed || !selectedSource) return [];
+        const feedForMatch = flowData.find(f => f.label === selectedFeed);
+        const sourceNode = feedForMatch?.children?.find(s => s.label === selectedSource);
+        return sourceNode?.children || [];
+      case 'workflows':
+        if (!selectedFeed || !selectedSource || !selectedMatch) return [];
+        const feedForWorkflow = flowData.find(f => f.label === selectedFeed);
+        const sourceForWorkflow = feedForWorkflow?.children?.find(s => s.label === selectedSource);
+        const matchNode = sourceForWorkflow?.children?.find(m => m.label === selectedMatch);
+        return matchNode?.children || [];
+      case 'states':
+        if (!selectedFeed || !selectedSource || !selectedMatch || !selectedWorkflow) return [];
+        const feedForState = flowData.find(f => f.label === selectedFeed);
+        const sourceForState = feedForState?.children?.find(s => s.label === selectedSource);
+        const matchForState = sourceForState?.children?.find(m => m.label === selectedMatch);
+        const workflowNode = matchForState?.children?.find(w => w.label === selectedWorkflow);
+        return workflowNode?.children || [];
+      default:
+        return [];
+    }
   };
 
-  const renderHorizontalFlow = () => {
-    if (!flowData || flowData.length === 0) return null;
+  const handleNodeClick = (node: FlowNode) => {
+    switch (currentStage) {
+      case 'feeds':
+        setSelectedFeed(node.label);
+        setCurrentStage('sources');
+        break;
+      case 'sources':
+        setSelectedSource(node.label);
+        setCurrentStage('matches');
+        break;
+      case 'matches':
+        setSelectedMatch(node.label);
+        setCurrentStage('workflows');
+        break;
+      case 'workflows':
+        setSelectedWorkflow(node.label);
+        setCurrentStage('states');
+        break;
+    }
+  };
 
-    // Collect all unique nodes at each level
-    const allSources = new Set<string>();
-    const allMatches = new Set<string>();
-    const allWorkflows = new Set<string>();
-    const allStates = new Set<string>();
+  const getBreadcrumb = () => {
+    const crumbs = [];
+    if (selectedProject !== 'all') crumbs.push(selectedProject);
+    if (selectedFeed) crumbs.push(selectedFeed);
+    if (selectedSource) crumbs.push(selectedSource);
+    if (selectedMatch) crumbs.push(selectedMatch);
+    if (selectedWorkflow) crumbs.push(selectedWorkflow);
+    return crumbs;
+  };
 
-    flowData.forEach(feed => {
-      feed.children?.forEach(source => {
-        allSources.add(source.label);
-        source.children?.forEach(match => {
-          allMatches.add(match.label);
-          match.children?.forEach(workflow => {
-            allWorkflows.add(workflow.label);
-            workflow.children?.forEach(state => {
-              allStates.add(state.label);
-            });
-          });
-        });
-      });
-    });
+  const resetToStage = (stage: ViewStage) => {
+    setCurrentStage(stage);
+    if (stage === 'feeds') {
+      setSelectedFeed('');
+      setSelectedSource('');
+      setSelectedMatch('');
+      setSelectedWorkflow('');
+    } else if (stage === 'sources') {
+      setSelectedSource('');
+      setSelectedMatch('');
+      setSelectedWorkflow('');
+    } else if (stage === 'matches') {
+      setSelectedMatch('');
+      setSelectedWorkflow('');
+    } else if (stage === 'workflows') {
+      setSelectedWorkflow('');
+    }
+  };
 
-    return (
-      <div className="flex items-center justify-center space-x-8 overflow-x-auto pb-4">
-        {renderColumn(flowData, 'Feed Names', 'feed')}
-        
-        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
-        
-        {renderColumn(
-          Array.from(allSources).map(source => ({
-            id: source,
-            label: source,
-            type: 'source' as const,
-            count: data.filter(item => item.scmSource === source).reduce((sum, item) => sum + (item.alertCount || 0), 0)
-          })),
-          'Sources',
-          'source'
-        )}
-        
-        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
-        
-        {renderColumn(
-          Array.from(allMatches).map(match => ({
-            id: match,
-            label: match,
-            type: 'match' as const,
-            count: data.filter(item => item.matchProcess === match).reduce((sum, item) => sum + (item.alertCount || 0), 0)
-          })),
-          'Match Process',
-          'match'
-        )}
-        
-        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
-        
-        {renderColumn(
-          Array.from(allWorkflows).map(workflow => ({
-            id: workflow,
-            label: workflow,
-            type: 'workflow' as const,
-            count: data.filter(item => item.workflow === workflow).reduce((sum, item) => sum + (item.alertCount || 0), 0)
-          })),
-          'Workflows',
-          'workflow'
-        )}
-        
-        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
-        
-        {renderColumn(
-          Array.from(allStates).map(state => ({
-            id: state,
-            label: state,
-            type: 'state' as const,
-            count: data.filter(item => item.state === state).reduce((sum, item) => sum + (item.alertCount || 0), 0)
-          })),
-          'End States',
-          'state'
-        )}
-      </div>
-    );
+  const getStageTitle = () => {
+    const titles = {
+      feeds: 'Feed Names',
+      sources: 'Sources',
+      matches: 'Match Processes',
+      workflows: 'Workflows',
+      states: 'End States'
+    };
+    return titles[currentStage];
   };
 
   return (
-    <div className="space-y-6">
-      <div className="mb-4">
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="mb-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-2">Workflow Flowchart</h3>
         <p className="text-sm text-slate-600 mb-4">
-          Select a project to view its complete workflow from feeds to final states.
+          Navigate through the workflow stages to explore the complete data flow.
         </p>
         
         <Select value={selectedProject} onValueChange={setSelectedProject}>
@@ -263,29 +267,107 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         </Select>
       </div>
 
-      <Card className="p-6 min-h-[400px]">
-        {selectedProject !== 'all' && (
-          <div className="text-center mb-6">
-            <div className="bg-slate-800 text-white px-6 py-3 rounded-lg inline-block font-semibold text-lg">
-              {selectedProject}
-            </div>
-          </div>
-        )}
+      {/* Navigation Bar */}
+      <div className="flex items-center gap-2 mb-6 p-4 bg-slate-100 rounded-lg">
+        <Button
+          variant={currentStage === 'feeds' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => resetToStage('feeds')}
+        >
+          Feeds
+        </Button>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <Button
+          variant={currentStage === 'sources' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => resetToStage('sources')}
+          disabled={!selectedFeed}
+        >
+          Sources
+        </Button>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <Button
+          variant={currentStage === 'matches' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => resetToStage('matches')}
+          disabled={!selectedSource}
+        >
+          Matches
+        </Button>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <Button
+          variant={currentStage === 'workflows' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => resetToStage('workflows')}
+          disabled={!selectedMatch}
+        >
+          Workflows
+        </Button>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <Button
+          variant={currentStage === 'states' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => resetToStage('states')}
+          disabled={!selectedWorkflow}
+        >
+          States
+        </Button>
+      </div>
+
+      {/* Breadcrumb */}
+      {getBreadcrumb().length > 0 && (
+        <div className="flex items-center gap-2 mb-4 text-sm text-slate-600">
+          <span>Path:</span>
+          {getBreadcrumb().map((crumb, index) => (
+            <React.Fragment key={index}>
+              <span className="font-medium">{crumb}</span>
+              {index < getBreadcrumb().length - 1 && <ChevronRight className="w-3 h-3" />}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <h4 className="text-xl font-semibold text-slate-900 mb-4 text-center">
+          {getStageTitle()}
+        </h4>
         
-        {flowData && flowData.length > 0 ? (
-          renderHorizontalFlow()
-        ) : (
-          <div className="flex items-center justify-center h-64 text-gray-500">
-            <div className="text-center">
-              <p className="text-lg mb-2">No workflow data available</p>
-              <p className="text-sm">Select a project to view its workflow</p>
+        <div className="flex-1 flex items-center justify-center">
+          {getCurrentStageData().length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full max-w-6xl">
+              {getCurrentStageData().map(node => (
+                <div
+                  key={node.id}
+                  className={`${getNodeColor(node.type)} text-white p-6 rounded-lg shadow-lg cursor-pointer transition-all duration-200 transform hover:scale-105`}
+                  onClick={() => handleNodeClick(node)}
+                >
+                  <div className="text-center">
+                    <div className="font-semibold text-lg mb-2">{node.label}</div>
+                    <div className="text-sm opacity-90">{node.count.toLocaleString()} alerts</div>
+                    {currentStage !== 'states' && (
+                      <div className="mt-2 text-xs opacity-75">Click to expand</div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        )}
-      </Card>
+          ) : (
+            <div className="text-center text-gray-500">
+              <p className="text-lg mb-2">No data available</p>
+              <p className="text-sm">
+                {currentStage === 'feeds' 
+                  ? 'Select a project to view workflow data'
+                  : 'Navigate back to select items from previous stages'
+                }
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Legend */}
-      <Card className="p-4">
+      <div className="mt-6 p-4 bg-white rounded-lg border">
         <h4 className="font-semibold text-slate-900 mb-3">Legend</h4>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
@@ -309,7 +391,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             <span className="text-sm">End States</span>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

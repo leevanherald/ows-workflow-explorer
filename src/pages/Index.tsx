@@ -46,10 +46,10 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="container mx-auto p-6 max-w-7xl">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="container mx-auto p-6 max-w-7xl flex-1 flex flex-col">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             <img 
               src="/lovable-uploads/07918255-54de-4fea-b309-b3562bb915c4.png" 
@@ -101,53 +101,63 @@ const Index = () => {
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search workflows, feeds, or states..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+          {(activeView === 'tree' || activeView === 'table') && (
+            <CardContent>
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search workflows, feeds, or states..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Select value={filterProject} onValueChange={setFilterProject}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filter by Project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Projects</SelectItem>
+                      {uniqueProjects.map(project => (
+                        <SelectItem key={project} value={project}>{project}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterState} onValueChange={setFilterState}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filter by State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      {uniqueStates.map(state => (
+                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Select value={filterProject} onValueChange={setFilterProject}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by Project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Projects</SelectItem>
-                    {uniqueProjects.map(project => (
-                      <SelectItem key={project} value={project}>{project}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={filterState} onValueChange={setFilterState}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by State" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All States</SelectItem>
-                    {uniqueStates.map(state => (
-                      <SelectItem key={state} value={state}>{state}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
 
         {/* Main Content */}
-        <Card className="min-h-[600px]">
-          <CardContent className="p-6">
-            {renderView()}
-          </CardContent>
-        </Card>
+        <div className="flex-1 flex flex-col">
+          {activeView === 'flowchart' ? (
+            <div className="flex-1 bg-white rounded-lg shadow-sm p-6">
+              {renderView()}
+            </div>
+          ) : (
+            <Card className="flex-1 flex flex-col">
+              <CardContent className="p-6 flex-1">
+                {renderView()}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* Stats Footer */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
