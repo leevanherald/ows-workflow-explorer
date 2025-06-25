@@ -46,7 +46,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     const workflowNodes: FlowNode[] = Object.entries(workflowGroups).map(([workflow, items]) => {
       // Group by feed
       const feedGroups = items.reduce((acc, item) => {
-        const feedName = item.feedName || 'Unknown Feed';
+        const feedName = item.directorFeedname || 'Unknown Feed';
         if (!acc[feedName]) {
           acc[feedName] = [];
         }
@@ -57,7 +57,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       const feedNodes: FlowNode[] = Object.entries(feedGroups).map(([feedName, feedItems]) => {
         // Group by source
         const sourceGroups = feedItems.reduce((acc, item) => {
-          const source = item.source || 'Unknown Source';
+          const source = item.scmSource || 'Unknown Source';
           if (!acc[source]) {
             acc[source] = [];
           }
