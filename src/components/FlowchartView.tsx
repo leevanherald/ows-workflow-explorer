@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorkflowData } from '@/data/mockData';
-import { ArrowRight, ArrowDown } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface FlowchartViewProps {
   data: WorkflowData[];
@@ -12,7 +12,7 @@ interface FlowchartViewProps {
 interface FlowNode {
   id: string;
   label: string;
-  type: 'project' | 'workflow' | 'feed' | 'source' | 'match' | 'state';
+  type: 'project' | 'feed' | 'source' | 'match' | 'workflow' | 'state';
   count: number;
   children?: FlowNode[];
 }
@@ -33,52 +33,52 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
     if (filteredData.length === 0) return null;
 
-    // Group by workflow
-    const workflowGroups = filteredData.reduce((acc, item) => {
-      if (!acc[item.workflow]) {
-        acc[item.workflow] = [];
+    // Group by Director Feed Name
+    const feedGroups = filteredData.reduce((acc, item) => {
+      const feedName = item.directorFeedname || 'Unknown Feed';
+      if (!acc[feedName]) {
+        acc[feedName] = [];
       }
-      acc[item.workflow].push(item);
+      acc[feedName].push(item);
       return acc;
     }, {} as Record<string, WorkflowData[]>);
 
-    // Build flow nodes for each workflow
-    const workflowNodes: FlowNode[] = Object.entries(workflowGroups).map(([workflow, items]) => {
-      // Group by feed
-      const feedGroups = items.reduce((acc, item) => {
-        const feedName = item.directorFeedname || 'Unknown Feed';
-        if (!acc[feedName]) {
-          acc[feedName] = [];
+    // Build flow nodes for each feed
+    const feedNodes: FlowNode[] = Object.entries(feedGroups).map(([feedName, feedItems]) => {
+      // Group by source
+      const sourceGroups = feedItems.reduce((acc, item) => {
+        const source = item.scmSource || 'Unknown Source';
+        if (!acc[source]) {
+          acc[source] = [];
         }
-        acc[feedName].push(item);
+        acc[source].push(item);
         return acc;
       }, {} as Record<string, WorkflowData[]>);
 
-      const feedNodes: FlowNode[] = Object.entries(feedGroups).map(([feedName, feedItems]) => {
-        // Group by source
-        const sourceGroups = feedItems.reduce((acc, item) => {
-          const source = item.scmSource || 'Unknown Source';
-          if (!acc[source]) {
-            acc[source] = [];
+      const sourceNodes: FlowNode[] = Object.entries(sourceGroups).map(([source, sourceItems]) => {
+        // Group by match process
+        const matchGroups = sourceItems.reduce((acc, item) => {
+          const matchProcess = item.matchProcess || 'Unknown Process';
+          if (!acc[matchProcess]) {
+            acc[matchProcess] = [];
           }
-          acc[source].push(item);
+          acc[matchProcess].push(item);
           return acc;
         }, {} as Record<string, WorkflowData[]>);
 
-        const sourceNodes: FlowNode[] = Object.entries(sourceGroups).map(([source, sourceItems]) => {
-          // Group by match process
-          const matchGroups = sourceItems.reduce((acc, item) => {
-            const matchProcess = item.matchProcess || 'Unknown Process';
-            if (!acc[matchProcess]) {
-              acc[matchProcess] = [];
+        const matchNodes: FlowNode[] = Object.entries(matchGroups).map(([matchProcess, matchItems]) => {
+          // Group by workflow
+          const workflowGroups = matchItems.reduce((acc, item) => {
+            if (!acc[item.workflow]) {
+              acc[item.workflow] = [];
             }
-            acc[matchProcess].push(item);
+            acc[item.workflow].push(item);
             return acc;
           }, {} as Record<string, WorkflowData[]>);
 
-          const matchNodes: FlowNode[] = Object.entries(matchGroups).map(([matchProcess, matchItems]) => {
+          const workflowNodes: FlowNode[] = Object.entries(workflowGroups).map(([workflow, workflowItems]) => {
             // Group by final state
-            const stateGroups = matchItems.reduce((acc, item) => {
+            const stateGroups = workflowItems.reduce((acc, item) => {
               if (!acc[item.state]) {
                 acc[item.state] = [];
               }
@@ -87,79 +87,156 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             }, {} as Record<string, WorkflowData[]>);
 
             const stateNodes: FlowNode[] = Object.entries(stateGroups).map(([state, stateItems]) => ({
-              id: `${workflow}-${feedName}-${source}-${matchProcess}-${state}`,
+              id: `${feedName}-${source}-${matchProcess}-${workflow}-${state}`,
               label: state,
               type: 'state' as const,
               count: stateItems.reduce((sum, item) => sum + (item.alertCount || 0), 0)
             }));
 
             return {
-              id: `${workflow}-${feedName}-${source}-${matchProcess}`,
-              label: matchProcess,
-              type: 'match' as const,
-              count: matchItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
+              id: `${feedName}-${source}-${matchProcess}-${workflow}`,
+              label: workflow,
+              type: 'workflow' as const,
+              count: workflowItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
               children: stateNodes
             };
           });
 
           return {
-            id: `${workflow}-${feedName}-${source}`,
-            label: source,
-            type: 'source' as const,
-            count: sourceItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
-            children: matchNodes
+            id: `${feedName}-${source}-${matchProcess}`,
+            label: matchProcess,
+            type: 'match' as const,
+            count: matchItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
+            children: workflowNodes
           };
         });
 
         return {
-          id: `${workflow}-${feedName}`,
-          label: feedName,
-          type: 'feed' as const,
-          count: feedItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
-          children: sourceNodes
+          id: `${feedName}-${source}`,
+          label: source,
+          type: 'source' as const,
+          count: sourceItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
+          children: matchNodes
         };
       });
 
       return {
-        id: workflow,
-        label: workflow,
-        type: 'workflow' as const,
-        count: items.reduce((sum, item) => sum + (item.alertCount || 0), 0),
-        children: feedNodes
+        id: feedName,
+        label: feedName,
+        type: 'feed' as const,
+        count: feedItems.reduce((sum, item) => sum + (item.alertCount || 0), 0),
+        children: sourceNodes
       };
     });
 
-    return workflowNodes;
+    return feedNodes;
   }, [data, selectedProject]);
 
   const getNodeColor = (type: string) => {
     const colors = {
-      workflow: 'bg-blue-500',
-      feed: 'bg-green-500',
-      source: 'bg-purple-500',
-      match: 'bg-orange-500',
+      feed: 'bg-blue-500',
+      source: 'bg-green-500',
+      match: 'bg-purple-500',
+      workflow: 'bg-orange-500',
       state: 'bg-red-500'
     };
     return colors[type as keyof typeof colors] || 'bg-gray-500';
   };
 
-  const renderFlowNode = (node: FlowNode, level: number = 0) => {
-    const hasChildren = node.children && node.children.length > 0;
-    
+  const renderColumn = (nodes: FlowNode[], title: string, type: string) => {
     return (
-      <div key={node.id} className="flex flex-col items-center">
-        <div className={`${getNodeColor(node.type)} text-white px-4 py-2 rounded-lg shadow-md min-w-[120px] text-center`}>
-          <div className="font-medium text-sm">{node.label}</div>
-          <div className="text-xs opacity-90">{node.count.toLocaleString()}</div>
-        </div>
-        
-        {hasChildren && (
-          <>
-            <ArrowDown className="w-4 h-4 text-gray-600 my-2" />
-            <div className="flex flex-wrap gap-8 justify-center">
-              {node.children!.map(child => renderFlowNode(child, level + 1))}
+      <div className="flex flex-col items-center min-w-[200px]">
+        <h4 className="font-semibold text-slate-700 mb-4 text-center">{title}</h4>
+        <div className="space-y-3">
+          {nodes.map(node => (
+            <div key={node.id} className={`${getNodeColor(type)} text-white px-4 py-3 rounded-lg shadow-md text-center min-w-[150px]`}>
+              <div className="font-medium text-sm">{node.label}</div>
+              <div className="text-xs opacity-90">{node.count.toLocaleString()}</div>
             </div>
-          </>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHorizontalFlow = () => {
+    if (!flowData || flowData.length === 0) return null;
+
+    // Collect all unique nodes at each level
+    const allSources = new Set<string>();
+    const allMatches = new Set<string>();
+    const allWorkflows = new Set<string>();
+    const allStates = new Set<string>();
+
+    flowData.forEach(feed => {
+      feed.children?.forEach(source => {
+        allSources.add(source.label);
+        source.children?.forEach(match => {
+          allMatches.add(match.label);
+          match.children?.forEach(workflow => {
+            allWorkflows.add(workflow.label);
+            workflow.children?.forEach(state => {
+              allStates.add(state.label);
+            });
+          });
+        });
+      });
+    });
+
+    return (
+      <div className="flex items-center justify-center space-x-8 overflow-x-auto pb-4">
+        {renderColumn(flowData, 'Feed Names', 'feed')}
+        
+        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
+        
+        {renderColumn(
+          Array.from(allSources).map(source => ({
+            id: source,
+            label: source,
+            type: 'source' as const,
+            count: data.filter(item => item.scmSource === source).reduce((sum, item) => sum + (item.alertCount || 0), 0)
+          })),
+          'Sources',
+          'source'
+        )}
+        
+        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
+        
+        {renderColumn(
+          Array.from(allMatches).map(match => ({
+            id: match,
+            label: match,
+            type: 'match' as const,
+            count: data.filter(item => item.matchProcess === match).reduce((sum, item) => sum + (item.alertCount || 0), 0)
+          })),
+          'Match Process',
+          'match'
+        )}
+        
+        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
+        
+        {renderColumn(
+          Array.from(allWorkflows).map(workflow => ({
+            id: workflow,
+            label: workflow,
+            type: 'workflow' as const,
+            count: data.filter(item => item.workflow === workflow).reduce((sum, item) => sum + (item.alertCount || 0), 0)
+          })),
+          'Workflows',
+          'workflow'
+        )}
+        
+        <ArrowRight className="w-8 h-8 text-gray-400 flex-shrink-0" />
+        
+        {renderColumn(
+          Array.from(allStates).map(state => ({
+            id: state,
+            label: state,
+            type: 'state' as const,
+            count: data.filter(item => item.state === state).reduce((sum, item) => sum + (item.alertCount || 0), 0)
+          })),
+          'End States',
+          'state'
         )}
       </div>
     );
@@ -187,25 +264,16 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       </div>
 
       <Card className="p-6 min-h-[400px]">
-        {flowData && flowData.length > 0 ? (
-          <div className="space-y-8">
-            {selectedProject !== 'all' && (
-              <div className="text-center">
-                <div className="bg-slate-800 text-white px-6 py-3 rounded-lg inline-block font-semibold text-lg">
-                  {selectedProject}
-                </div>
-                <ArrowDown className="w-6 h-6 text-gray-600 mx-auto my-4" />
-              </div>
-            )}
-            
-            <div className="space-y-12">
-              {flowData.map(workflowNode => (
-                <div key={workflowNode.id} className="border-l-4 border-blue-500 pl-6">
-                  {renderFlowNode(workflowNode)}
-                </div>
-              ))}
+        {selectedProject !== 'all' && (
+          <div className="text-center mb-6">
+            <div className="bg-slate-800 text-white px-6 py-3 rounded-lg inline-block font-semibold text-lg">
+              {selectedProject}
             </div>
           </div>
+        )}
+        
+        {flowData && flowData.length > 0 ? (
+          renderHorizontalFlow()
         ) : (
           <div className="flex items-center justify-center h-64 text-gray-500">
             <div className="text-center">
@@ -222,23 +290,23 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span className="text-sm">Workflow</span>
+            <span className="text-sm">Feed Names</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span className="text-sm">Feed</span>
+            <span className="text-sm">Sources</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-purple-500 rounded"></div>
-            <span className="text-sm">Source</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-orange-500 rounded"></div>
             <span className="text-sm">Match Process</span>
           </div>
           <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-orange-500 rounded"></div>
+            <span className="text-sm">Workflows</span>
+          </div>
+          <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-red-500 rounded"></div>
-            <span className="text-sm">End State</span>
+            <span className="text-sm">End States</span>
           </div>
         </div>
       </Card>
