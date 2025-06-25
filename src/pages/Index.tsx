@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Search, Filter, Download, TreePine, GitBranch, Table } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TreeView from '@/components/TreeView';
-import SankeyView from '@/components/SankeyView';
+import FlowchartView from '@/components/FlowchartView';
 import TabularView from '@/components/TabularView';
 import { mockWorkflowData } from '@/data/mockData';
 
-type ViewType = 'tree' | 'sankey' | 'table';
+type ViewType = 'tree' | 'flowchart' | 'table';
 
 const Index = () => {
-  const [activeView, setActiveView] = useState<ViewType>('tree');
+  const [activeView, setActiveView] = useState<ViewType>('flowchart');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProject, setFilterProject] = useState('all');
   const [filterState, setFilterState] = useState('all');
@@ -35,12 +36,12 @@ const Index = () => {
     switch (activeView) {
       case 'tree':
         return <TreeView data={filteredData} />;
-      case 'sankey':
-        return <SankeyView data={filteredData} />;
+      case 'flowchart':
+        return <FlowchartView data={filteredData} />;
       case 'table':
         return <TabularView data={filteredData} />;
       default:
-        return <TreeView data={filteredData} />;
+        return <FlowchartView data={filteredData} />;
     }
   };
 
@@ -78,12 +79,12 @@ const Index = () => {
                   Tree View
                 </Button>
                 <Button
-                  variant={activeView === 'sankey' ? 'default' : 'outline'}
-                  onClick={() => setActiveView('sankey')}
+                  variant={activeView === 'flowchart' ? 'default' : 'outline'}
+                  onClick={() => setActiveView('flowchart')}
                   className="flex items-center gap-2"
                 >
                   <GitBranch className="w-4 h-4" />
-                  Sankey Flow
+                  Flowchart
                 </Button>
                 <Button
                   variant={activeView === 'table' ? 'default' : 'outline'}
