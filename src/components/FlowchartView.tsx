@@ -36,83 +36,103 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
   // Get unique projects for selection
   const projects = useMemo(() => {
-    return [...new Set(data.map(item => item.directorProject))];
+    return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
   }, [data]);
 
   // Build network data with React Flow format
   const { initialNodes, initialEdges } = useMemo(() => {
-    console.log('Building flowchart data...', { selectedProject, dataLength: data.length });
+    console.log('🔄 Building flowchart data...', { selectedProject, dataLength: data.length });
     
     let filteredData = selectedProject === 'all' 
       ? data 
       : data.filter(item => item.directorProject === selectedProject);
 
-    console.log('Filtered data length:', filteredData.length);
+    console.log('📊 Filtered data:', { filteredLength: filteredData.length, sampleItem: filteredData[0] });
 
     if (filteredData.length === 0) {
-      console.log('No data to display');
+      console.log('❌ No data to display');
       return { initialNodes: [], initialEdges: [] };
     }
 
     const nodeMap = new Map<string, NetworkNode>();
-    const edgeConnections: Array<[string, string]> = [];
+    const edgeSet = new Set<string>();
     
-    // Define spacing
+    // Define positioning
     const columnWidth = 300;
-    const nodeHeight = 80;
-    const verticalSpacing = 120;
+    const verticalSpacing = 100;
+    const startX = 50;
+    const startY = 50;
 
-    // Process each data item
+    // Process each data item to create nodes
     filteredData.forEach((item, index) => {
-      console.log(`Processing item ${index}:`, item);
+      console.log(`🔍 Processing item ${index + 1}/${filteredData.length}:`, {
+        project: item.directorProject,
+        feed: item.directorFeedname,
+        source: item.scmSource,
+        match: item.matchProcess,
+        workflow: item.workflow,
+        state: item.state
+      });
 
-      // Create node definitions with safe IDs
+      // Create safe node IDs by filtering out null/undefined values
       const nodeDefinitions = [
         { 
-          id: `project-${item.directorProject}`, 
-          label: item.directorProject, 
+          id: `project_${item.directorProject || 'unknown'}`, 
+          label: item.directorProject || 'Unknown Project', 
           type: 'project' as const, 
-          level: 0
+          level: 0,
+          value: item.directorProject
         },
         { 
-          id: `feed-${item.directorFeedname}`, 
-          label: item.directorFeedname, 
+          id: `feed_${item.directorFeedname || 'unknown'}`, 
+          label: item.directorFeedname || 'Unknown Feed', 
           type: 'feed' as const, 
-          level: 1
+          level: 1,
+          value: item.directorFeedname
         },
         { 
-          id: `source-${item.scmSource}`, 
-          label: item.scmSource, 
+          id: `source_${item.scmSource || 'unknown'}`, 
+          label: item.scmSource || 'Unknown Source', 
           type: 'source' as const, 
-          level: 2
+          level: 2,
+          value: item.scmSource
         },
         { 
-          id: `match-${item.matchProcess}`, 
-          label: item.matchProcess, 
+          id: `match_${item.matchProcess || 'unknown'}`, 
+          label: item.matchProcess || 'Unknown Match', 
           type: 'match' as const, 
-          level: 3
+          level: 3,
+          value: item.matchProcess
         },
         { 
-          id: `workflow-${item.workflow}`, 
-          label: item.workflow, 
+          id: `workflow_${item.workflow || 'unknown'}`, 
+          label: item.workflow || 'Unknown Workflow', 
           type: 'workflow' as const, 
-          level: 4
+          level: 4,
+          value: item.workflow
         },
         { 
-          id: `state-${item.state}`, 
-          label: item.state, 
+          id: `state_${item.state || 'unknown'}`, 
+          label: item.state || 'Unknown State', 
           type: 'state' as const, 
-          level: 5
+          level: 5,
+          value: item.state
         },
-      ];
+      ].filter(node => node.value); // Only include nodes with valid values
 
       // Create or update nodes
       nodeDefinitions.forEach(nodeDef => {
         if (!nodeMap.has(nodeDef.id)) {
+          const x = startX + (nodeDef.level * columnWidth);
+          const existingNodesAtLevel = Array.from(nodeMap.values()).filter(n => 
+            n.position.x === x
+          ).length;
+          const y = startY + (existingNodesAtLevel * verticalSpacing);
+
           nodeMap.set(nodeDef.id, {
             id: nodeDef.id,
             type: 'default',
-            position: { x: 0, y: 0 }, // Will be set later
+            position: { x, y },
             data: {
               label: nodeDef.label,
               count: 0,
@@ -142,52 +162,30 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         // Update count
         const existingNode = nodeMap.get(nodeDef.id);
         if (existingNode) {
-          existingNode.data.count += item.alertCount || 0;
+          existingNode.data.count += item.alertCount || 1;
         }
       });
 
-      // Create edge connections
-      const connections: Array<[string, string]> = [
-        [`project-${item.directorProject}`, `feed-${item.directorFeedname}`],
-        [`feed-${item.directorFeedname}`, `source-${item.scmSource}`],
-        [`source-${item.scmSource}`, `match-${item.matchProcess}`],
-        [`match-${item.matchProcess}`, `workflow-${item.workflow}`],
-        [`workflow-${item.workflow}`, `state-${item.state}`],
-      ];
-
-      connections.forEach(([source, target]) => {
-        if (source && target && !edgeConnections.some(([s, t]) => s === source && t === target)) {
-          edgeConnections.push([source, target]);
+      // Create edge connections only between valid nodes
+      if (nodeDefinitions.length >= 2) {
+        for (let i = 0; i < nodeDefinitions.length - 1; i++) {
+          const sourceId = nodeDefinitions[i].id;
+          const targetId = nodeDefinitions[i + 1].id;
+          const edgeId = `${sourceId}->${targetId}`;
+          
+          if (nodeMap.has(sourceId) && nodeMap.has(targetId) && !edgeSet.has(edgeId)) {
+            edgeSet.add(edgeId);
+          }
         }
-      });
-    });
-
-    console.log('Created nodes:', nodeMap.size);
-
-    // Position nodes by level
-    const nodesByLevel = new Map<number, NetworkNode[]>();
-    Array.from(nodeMap.values()).forEach(node => {
-      const level = getNodeLevel(node.data.type);
-      if (!nodesByLevel.has(level)) {
-        nodesByLevel.set(level, []);
       }
-      nodesByLevel.get(level)!.push(node);
     });
 
-    // Calculate positions
-    nodesByLevel.forEach((levelNodes, level) => {
-      const x = level * columnWidth + 50;
-      levelNodes.forEach((node, index) => {
-        node.position = {
-          x,
-          y: index * verticalSpacing + 50,
-        };
-      });
-    });
+    console.log('✅ Created nodes:', nodeMap.size);
+    console.log('✅ Created edge connections:', edgeSet.size);
 
-    // Create edges
-    const edges: Edge[] = edgeConnections.map((connection, index) => {
-      const [sourceId, targetId] = connection;
+    // Create edges array
+    const edges: Edge[] = Array.from(edgeSet).map((edgeId, index) => {
+      const [sourceId, targetId] = edgeId.split('->');
       return {
         id: `edge-${index}`,
         source: sourceId,
@@ -207,10 +205,15 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       };
     });
 
-    console.log('Created edges:', edges.length);
+    const finalNodes = Array.from(nodeMap.values());
+    console.log('🎯 Final result:', { 
+      nodes: finalNodes.length, 
+      edges: edges.length,
+      nodesSample: finalNodes.slice(0, 3).map(n => ({ id: n.id, label: n.data.label }))
+    });
 
     return {
-      initialNodes: Array.from(nodeMap.values()),
+      initialNodes: finalNodes,
       initialEdges: edges,
     };
   }, [data, selectedProject]);
@@ -221,18 +224,6 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const onConnect = useCallback(() => {
     // Prevent manual connections in this read-only flowchart
   }, []);
-
-  function getNodeLevel(type: string): number {
-    const levels = {
-      project: 0,
-      feed: 1,
-      source: 2,
-      match: 3,
-      workflow: 4,
-      state: 5,
-    };
-    return levels[type as keyof typeof levels] || 0;
-  }
 
   function getNodeColor(type: string): string {
     const colors = {
@@ -262,7 +253,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     default: CustomNode,
   };
 
-  console.log('FlowchartView render:', { 
+  console.log('🖼️ FlowchartView render:', { 
     nodesCount: nodes.length, 
     edgesCount: edges.length,
     selectedProject,
