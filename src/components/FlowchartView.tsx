@@ -4,7 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorkflowData } from '@/data/mockData';
-import { Plus, Minus } from 'lucide-react';
 
 interface FlowchartViewProps {
   data: WorkflowData[];
@@ -17,7 +16,7 @@ interface NetworkNode {
   count: number;
   x: number;
   y: number;
-  connections: string[];
+  level: number;
 }
 
 interface Connection {
@@ -29,14 +28,14 @@ interface Connection {
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const svgRef = useRef<SVGSVGElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
+  const [dimensions, setDimensions] = useState({ width: 1400, height: 900 });
 
   // Get unique projects for selection
   const projects = useMemo(() => {
     return [...new Set(data.map(item => item.directorProject))];
   }, [data]);
 
-  // Build network data
+  // Build network data based on actual relationships
   const { nodes, connections } = useMemo(() => {
     let filteredData = selectedProject === 'all' 
       ? data 
@@ -46,11 +45,26 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
     const nodeMap = new Map<string, NetworkNode>();
     const connectionSet = new Set<string>();
+    
+    // Track relationships for proper positioning
+    const relationships = {
+      projectFeeds: new Map<string, Set<string>>(),
+      feedSources: new Map<string, Set<string>>(),
+      sourceMatches: new Map<string, Set<string>>(),
+      matchWorkflows: new Map<string, Set<string>>(),
+      workflowStates: new Map<string, Set<string>>()
+    };
 
-    // Create nodes for each level
+    // First pass: create nodes and track relationships
     filteredData.forEach(item => {
-      // Project node
       const projectId = `project-${item.directorProject}`;
+      const feedId = `feed-${item.directorFeedname}`;
+      const sourceId = `source-${item.scmSource}`;
+      const matchId = `match-${item.matchProcess}`;
+      const workflowId = `workflow-${item.workflow}`;
+      const stateId = `state-${item.state}`;
+
+      // Create nodes if they don't exist
       if (!nodeMap.has(projectId)) {
         nodeMap.set(projectId, {
           id: projectId,
@@ -59,12 +73,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           count: 0,
           x: 0,
           y: 0,
-          connections: []
+          level: 0
         });
       }
 
-      // Feed node
-      const feedId = `feed-${item.directorProject}-${item.directorFeedname}`;
       if (!nodeMap.has(feedId)) {
         nodeMap.set(feedId, {
           id: feedId,
@@ -73,12 +85,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           count: 0,
           x: 0,
           y: 0,
-          connections: []
+          level: 1
         });
       }
 
-      // Source node
-      const sourceId = `source-${item.directorProject}-${item.directorFeedname}-${item.scmSource}`;
       if (!nodeMap.has(sourceId)) {
         nodeMap.set(sourceId, {
           id: sourceId,
@@ -87,12 +97,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           count: 0,
           x: 0,
           y: 0,
-          connections: []
+          level: 2
         });
       }
 
-      // Match node
-      const matchId = `match-${item.directorProject}-${item.directorFeedname}-${item.scmSource}-${item.matchProcess}`;
       if (!nodeMap.has(matchId)) {
         nodeMap.set(matchId, {
           id: matchId,
@@ -101,12 +109,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           count: 0,
           x: 0,
           y: 0,
-          connections: []
+          level: 3
         });
       }
 
-      // Workflow node
-      const workflowId = `workflow-${item.directorProject}-${item.directorFeedname}-${item.scmSource}-${item.matchProcess}-${item.workflow}`;
       if (!nodeMap.has(workflowId)) {
         nodeMap.set(workflowId, {
           id: workflowId,
@@ -115,12 +121,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           count: 0,
           x: 0,
           y: 0,
-          connections: []
+          level: 4
         });
       }
 
-      // State node
-      const stateId = `state-${item.directorProject}-${item.directorFeedname}-${item.scmSource}-${item.matchProcess}-${item.workflow}-${item.state}`;
       if (!nodeMap.has(stateId)) {
         nodeMap.set(stateId, {
           id: stateId,
@@ -129,9 +133,35 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           count: 0,
           x: 0,
           y: 0,
-          connections: []
+          level: 5
         });
       }
+
+      // Track relationships
+      if (!relationships.projectFeeds.has(projectId)) {
+        relationships.projectFeeds.set(projectId, new Set());
+      }
+      relationships.projectFeeds.get(projectId)!.add(feedId);
+
+      if (!relationships.feedSources.has(feedId)) {
+        relationships.feedSources.set(feedId, new Set());
+      }
+      relationships.feedSources.get(feedId)!.add(sourceId);
+
+      if (!relationships.sourceMatches.has(sourceId)) {
+        relationships.sourceMatches.set(sourceId, new Set());
+      }
+      relationships.sourceMatches.get(sourceId)!.add(matchId);
+
+      if (!relationships.matchWorkflows.has(matchId)) {
+        relationships.matchWorkflows.set(matchId, new Set());
+      }
+      relationships.matchWorkflows.get(matchId)!.add(workflowId);
+
+      if (!relationships.workflowStates.has(workflowId)) {
+        relationships.workflowStates.set(workflowId, new Set());
+      }
+      relationships.workflowStates.get(workflowId)!.add(stateId);
 
       // Add alert counts
       nodeMap.get(projectId)!.count += item.alertCount || 0;
@@ -151,37 +181,37 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
     const nodes = Array.from(nodeMap.values());
     
-    // Position nodes
-    const nodesByType = {
-      project: nodes.filter(n => n.type === 'project'),
-      feed: nodes.filter(n => n.type === 'feed'),
-      source: nodes.filter(n => n.type === 'source'),
-      match: nodes.filter(n => n.type === 'match'),
-      workflow: nodes.filter(n => n.type === 'workflow'),
-      state: nodes.filter(n => n.type === 'state')
-    };
+    // Position nodes using a force-directed approach
+    const levelWidth = dimensions.width / 6;
+    const padding = 100;
 
-    // Position nodes in columns
-    const columnWidth = dimensions.width / 6;
-    const padding = 50;
+    // Group nodes by level
+    const nodesByLevel = new Map<number, NetworkNode[]>();
+    for (let i = 0; i <= 5; i++) {
+      nodesByLevel.set(i, nodes.filter(n => n.level === i));
+    }
 
-    Object.entries(nodesByType).forEach(([type, typeNodes], colIndex) => {
-      const x = padding + colIndex * columnWidth;
+    // Position nodes level by level
+    nodesByLevel.forEach((levelNodes, level) => {
+      const x = padding + level * levelWidth;
       const availableHeight = dimensions.height - 2 * padding;
-      const nodeSpacing = typeNodes.length > 1 ? availableHeight / (typeNodes.length - 1) : 0;
-
-      typeNodes.forEach((node, index) => {
-        node.x = x;
-        node.y = typeNodes.length === 1 
-          ? dimensions.height / 2 
-          : padding + index * nodeSpacing;
-      });
+      
+      if (levelNodes.length === 1) {
+        levelNodes[0].x = x;
+        levelNodes[0].y = dimensions.height / 2;
+      } else {
+        levelNodes.forEach((node, index) => {
+          node.x = x;
+          node.y = padding + (index * availableHeight) / (levelNodes.length - 1);
+        });
+      }
     });
 
     // Create connection paths
     const connections: Connection[] = Array.from(connectionSet).map(connStr => {
       const [fromId, toId] = connStr.split('-').reduce((acc, part, index, arr) => {
-        if (index < arr.length / 2) {
+        const midPoint = Math.floor(arr.length / 2);
+        if (index < midPoint) {
           acc[0] += (acc[0] ? '-' : '') + part;
         } else {
           acc[1] += (acc[1] ? '-' : '') + part;
@@ -197,9 +227,9 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       // Create curved path
       const dx = toNode.x - fromNode.x;
       const dy = toNode.y - fromNode.y;
-      const controlPointOffset = Math.abs(dx) * 0.5;
+      const controlPointOffset = Math.abs(dx) * 0.4;
 
-      const path = `M ${fromNode.x + 60} ${fromNode.y} C ${fromNode.x + 60 + controlPointOffset} ${fromNode.y}, ${toNode.x - controlPointOffset} ${toNode.y}, ${toNode.x} ${toNode.y}`;
+      const path = `M ${fromNode.x + 80} ${fromNode.y} C ${fromNode.x + 80 + controlPointOffset} ${fromNode.y}, ${toNode.x - controlPointOffset} ${toNode.y}, ${toNode.x - 80} ${toNode.y}`;
 
       return {
         from: fromId,
@@ -214,11 +244,13 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   useEffect(() => {
     const updateDimensions = () => {
       if (svgRef.current) {
-        const rect = svgRef.current.getBoundingClientRect();
-        setDimensions({
-          width: Math.max(1200, rect.width),
-          height: Math.max(800, rect.height)
-        });
+        const container = svgRef.current.parentElement;
+        if (container) {
+          setDimensions({
+            width: Math.max(1400, container.clientWidth),
+            height: Math.max(900, container.clientHeight)
+          });
+        }
       }
     };
 
@@ -262,13 +294,13 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       </div>
 
       {/* Main Flowchart */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-auto relative">
         <svg
           ref={svgRef}
-          width="100%"
-          height="100%"
+          width={dimensions.width}
+          height={dimensions.height}
           viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-          className="absolute inset-0"
+          className="min-w-full min-h-full"
         >
           {/* Connections */}
           <defs>
@@ -303,30 +335,31 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           {nodes.map(node => (
             <g key={node.id} transform={`translate(${node.x}, ${node.y})`}>
               <rect
-                x="-60"
-                y="-20"
-                width="120"
-                height="40"
-                rx="4"
+                x="-80"
+                y="-25"
+                width="160"
+                height="50"
+                rx="8"
                 fill={getNodeColor(node.type)}
                 stroke="#374151"
                 strokeWidth="2"
+                className="drop-shadow-lg"
               />
               <text
                 x="0"
-                y="-2"
+                y="-5"
                 textAnchor="middle"
                 className="fill-white text-sm font-medium"
-                style={{ fontSize: '12px' }}
+                style={{ fontSize: '13px' }}
               >
-                {node.label.length > 12 ? `${node.label.substring(0, 12)}...` : node.label}
+                {node.label.length > 18 ? `${node.label.substring(0, 18)}...` : node.label}
               </text>
               <text
                 x="0"
                 y="12"
                 textAnchor="middle"
                 className="fill-white text-xs opacity-80"
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: '11px' }}
               >
                 {node.count} alerts
               </text>
