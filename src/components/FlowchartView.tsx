@@ -266,7 +266,6 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           panOnScroll
           selectionOnDrag
           panOnDrag={[1, 2]}
-          selectionMode="partial"
         >
           <Background 
             color="#475569" 
@@ -276,13 +275,6 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           />
           <Controls 
             className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
-            style={{
-              button: {
-                backgroundColor: 'rgba(51, 65, 85, 0.8)',
-                color: 'white',
-                border: '1px solid rgba(148, 163, 184, 0.3)',
-              }
-            }}
           />
           <MiniMap 
             className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
@@ -290,7 +282,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               backgroundColor: 'rgba(51, 65, 85, 0.8)',
             }}
             nodeColor={(node) => {
-              const type = node.data?.type || 'default';
+              const nodeData = node.data as { type?: string };
+              const type = nodeData?.type || 'default';
               return getNodeColor(type).includes('gradient') ? '#64748b' : getNodeColor(type);
             }}
             maskColor="rgba(0, 0, 0, 0.2)"
