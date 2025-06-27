@@ -1,0 +1,76 @@
+
+@import '@xyflow/react/dist/style.css';
+
+.react-flow-dark-theme {
+  --xy-node-color-default: white;
+  --xy-node-background-color-default: transparent;
+  --xy-node-border-default: 2px solid rgba(255, 255, 255, 0.2);
+  --xy-node-border-radius-default: 12px;
+  --xy-handle-background-color-default: rgba(255, 255, 255, 0.8);
+  --xy-handle-border-color-default: rgba(255, 255, 255, 0.4);
+  --xy-edge-stroke-default: #64748b;
+  --xy-edge-stroke-width-default: 3px;
+}
+
+.react-flow-dark-theme .react-flow__node {
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.react-flow-dark-theme .react-flow__node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+.react-flow-dark-theme .react-flow__node.selected {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important;
+}
+
+.react-flow-dark-theme .react-flow__edge-path {
+  transition: all 0.3s ease;
+}
+
+.react-flow-dark-theme .react-flow__edge:hover .react-flow__edge-path {
+  stroke: #3b82f6;
+  stroke-width: 4px;
+}
+
+.react-flow-dark-theme .react-flow__controls {
+  background: rgba(51, 65, 85, 0.8) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+  border-radius: 8px;
+}
+
+.react-flow-dark-theme .react-flow__controls button {
+  background: rgba(51, 65, 85, 0.8) !important;
+  color: white !important;
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+  transition: all 0.2s ease;
+}
+
+.react-flow-dark-theme .react-flow__controls button:hover {
+  background: rgba(71, 85, 105, 0.9) !important;
+  transform: scale(1.05);
+}
+
+.react-flow-dark-theme .react-flow__minimap {
+  background: rgba(51, 65, 85, 0.8) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+  border-radius: 8px;
+}
+
+.react-flow-dark-theme .react-flow__handle {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+  width: 12px !important;
+  height: 12px !important;
+  transition: all 0.2s ease;
+}
+
+.react-flow-dark-theme .react-flow__handle:hover {
+  background: rgba(59, 130, 246, 0.8) !important;
+  border-color: rgba(59, 130, 246, 1) !important;
+  transform: scale(1.2);
+}
