@@ -1,20 +1,7 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
-import {
-  ReactFlow,
-  Node,
-  Edge,
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
-  MarkerType,
-  Position,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import './FlowchartView.css';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorkflowData } from '@/data/mockData';
 
@@ -22,254 +9,276 @@ interface FlowchartViewProps {
   data: WorkflowData[];
 }
 
-interface NetworkNode extends Node {
-  data: {
-    label: string;
-    count: number;
-    type: 'project' | 'feed' | 'source' | 'match' | 'workflow' | 'state';
-    details: string;
-  };
+interface NetworkNode {
+  id: string;
+  label: string;
+  type: 'project' | 'feed' | 'source' | 'match' | 'workflow' | 'state';
+  count: number;
+  x: number;
+  y: number;
+  level: number;
+}
+
+interface Connection {
+  from: string;
+  to: string;
+  path: string;
 }
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 1400, height: 900 });
 
   // Get unique projects for selection
   const projects = useMemo(() => {
-    return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
+    return [...new Set(data.map(item => item.directorProject))];
   }, [data]);
 
-  // Build network data with React Flow format
-  const { initialNodes, initialEdges } = useMemo(() => {
-    console.log('🔄 Building flowchart data...', { selectedProject, dataLength: data.length });
-    
+  // Build network data based on actual relationships
+  const { nodes, connections } = useMemo(() => {
     let filteredData = selectedProject === 'all' 
       ? data 
       : data.filter(item => item.directorProject === selectedProject);
 
-    console.log('📊 Filtered data:', { filteredLength: filteredData.length, sampleItem: filteredData[0] });
-
-    if (filteredData.length === 0) {
-      console.log('❌ No data to display');
-      return { initialNodes: [], initialEdges: [] };
-    }
+    if (filteredData.length === 0) return { nodes: [], connections: [] };
 
     const nodeMap = new Map<string, NetworkNode>();
-    const edgeSet = new Set<string>();
+    const connectionSet = new Set<string>();
     
-    // Define positioning
-    const columnWidth = 300;
-    const verticalSpacing = 100;
-    const startX = 50;
-    const startY = 50;
+    // Track relationships for proper positioning
+    const relationships = {
+      projectFeeds: new Map<string, Set<string>>(),
+      feedSources: new Map<string, Set<string>>(),
+      sourceMatches: new Map<string, Set<string>>(),
+      matchWorkflows: new Map<string, Set<string>>(),
+      workflowStates: new Map<string, Set<string>>()
+    };
 
-    // Process each data item to create nodes
-    filteredData.forEach((item, index) => {
-      console.log(`🔍 Processing item ${index + 1}/${filteredData.length}:`, {
-        project: item.directorProject,
-        feed: item.directorFeedname,
-        source: item.scmSource,
-        match: item.matchProcess,
-        workflow: item.workflow,
-        state: item.state
-      });
+    // First pass: create nodes and track relationships
+    filteredData.forEach(item => {
+      const projectId = `project-${item.directorProject}`;
+      const feedId = `feed-${item.directorFeedname}`;
+      const sourceId = `source-${item.scmSource}`;
+      const matchId = `match-${item.matchProcess}`;
+      const workflowId = `workflow-${item.workflow}`;
+      const stateId = `state-${item.state}`;
 
-      // Create safe node IDs by filtering out null/undefined values
-      const nodeDefinitions = [
-        { 
-          id: `project_${item.directorProject || 'unknown'}`, 
-          label: item.directorProject || 'Unknown Project', 
-          type: 'project' as const, 
-          level: 0,
-          value: item.directorProject
-        },
-        { 
-          id: `feed_${item.directorFeedname || 'unknown'}`, 
-          label: item.directorFeedname || 'Unknown Feed', 
-          type: 'feed' as const, 
-          level: 1,
-          value: item.directorFeedname
-        },
-        { 
-          id: `source_${item.scmSource || 'unknown'}`, 
-          label: item.scmSource || 'Unknown Source', 
-          type: 'source' as const, 
-          level: 2,
-          value: item.scmSource
-        },
-        { 
-          id: `match_${item.matchProcess || 'unknown'}`, 
-          label: item.matchProcess || 'Unknown Match', 
-          type: 'match' as const, 
-          level: 3,
-          value: item.matchProcess
-        },
-        { 
-          id: `workflow_${item.workflow || 'unknown'}`, 
-          label: item.workflow || 'Unknown Workflow', 
-          type: 'workflow' as const, 
-          level: 4,
-          value: item.workflow
-        },
-        { 
-          id: `state_${item.state || 'unknown'}`, 
-          label: item.state || 'Unknown State', 
-          type: 'state' as const, 
-          level: 5,
-          value: item.state
-        },
-      ].filter(node => node.value); // Only include nodes with valid values
+      // Create nodes if they don't exist
+      if (!nodeMap.has(projectId)) {
+        nodeMap.set(projectId, {
+          id: projectId,
+          label: item.directorProject,
+          type: 'project',
+          count: 0,
+          x: 0,
+          y: 0,
+          level: 0
+        });
+      }
 
-      // Create or update nodes
-      nodeDefinitions.forEach(nodeDef => {
-        if (!nodeMap.has(nodeDef.id)) {
-          const x = startX + (nodeDef.level * columnWidth);
-          const existingNodesAtLevel = Array.from(nodeMap.values()).filter(n => 
-            n.position.x === x
-          ).length;
-          const y = startY + (existingNodesAtLevel * verticalSpacing);
+      if (!nodeMap.has(feedId)) {
+        nodeMap.set(feedId, {
+          id: feedId,
+          label: item.directorFeedname || 'Unknown Feed',
+          type: 'feed',
+          count: 0,
+          x: 0,
+          y: 0,
+          level: 1
+        });
+      }
 
-          nodeMap.set(nodeDef.id, {
-            id: nodeDef.id,
-            type: 'default',
-            position: { x, y },
-            data: {
-              label: nodeDef.label,
-              count: 0,
-              type: nodeDef.type,
-              details: `${nodeDef.type}: ${nodeDef.label}`,
-            },
-            sourcePosition: Position.Right,
-            targetPosition: Position.Left,
-            style: {
-              background: getNodeColor(nodeDef.type),
-              color: 'white',
-              border: '2px solid rgba(255,255,255,0.2)',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              minWidth: '180px',
-              minHeight: '60px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-              fontSize: '14px',
-              fontWeight: '500',
-            },
-          });
-        }
-        
-        // Update count
-        const existingNode = nodeMap.get(nodeDef.id);
-        if (existingNode) {
-          existingNode.data.count += item.alertCount || 1;
-        }
-      });
+      if (!nodeMap.has(sourceId)) {
+        nodeMap.set(sourceId, {
+          id: sourceId,
+          label: item.scmSource || 'Unknown Source',
+          type: 'source',
+          count: 0,
+          x: 0,
+          y: 0,
+          level: 2
+        });
+      }
 
-      // Create edge connections only between valid nodes
-      if (nodeDefinitions.length >= 2) {
-        for (let i = 0; i < nodeDefinitions.length - 1; i++) {
-          const sourceId = nodeDefinitions[i].id;
-          const targetId = nodeDefinitions[i + 1].id;
-          const edgeId = `${sourceId}->${targetId}`;
-          
-          if (nodeMap.has(sourceId) && nodeMap.has(targetId) && !edgeSet.has(edgeId)) {
-            edgeSet.add(edgeId);
-          }
-        }
+      if (!nodeMap.has(matchId)) {
+        nodeMap.set(matchId, {
+          id: matchId,
+          label: item.matchProcess || 'Unknown Match',
+          type: 'match',
+          count: 0,
+          x: 0,
+          y: 0,
+          level: 3
+        });
+      }
+
+      if (!nodeMap.has(workflowId)) {
+        nodeMap.set(workflowId, {
+          id: workflowId,
+          label: item.workflow,
+          type: 'workflow',
+          count: 0,
+          x: 0,
+          y: 0,
+          level: 4
+        });
+      }
+
+      if (!nodeMap.has(stateId)) {
+        nodeMap.set(stateId, {
+          id: stateId,
+          label: item.state,
+          type: 'state',
+          count: 0,
+          x: 0,
+          y: 0,
+          level: 5
+        });
+      }
+
+      // Track relationships
+      if (!relationships.projectFeeds.has(projectId)) {
+        relationships.projectFeeds.set(projectId, new Set());
+      }
+      relationships.projectFeeds.get(projectId)!.add(feedId);
+
+      if (!relationships.feedSources.has(feedId)) {
+        relationships.feedSources.set(feedId, new Set());
+      }
+      relationships.feedSources.get(feedId)!.add(sourceId);
+
+      if (!relationships.sourceMatches.has(sourceId)) {
+        relationships.sourceMatches.set(sourceId, new Set());
+      }
+      relationships.sourceMatches.get(sourceId)!.add(matchId);
+
+      if (!relationships.matchWorkflows.has(matchId)) {
+        relationships.matchWorkflows.set(matchId, new Set());
+      }
+      relationships.matchWorkflows.get(matchId)!.add(workflowId);
+
+      if (!relationships.workflowStates.has(workflowId)) {
+        relationships.workflowStates.set(workflowId, new Set());
+      }
+      relationships.workflowStates.get(workflowId)!.add(stateId);
+
+      // Add alert counts
+      nodeMap.get(projectId)!.count += item.alertCount || 0;
+      nodeMap.get(feedId)!.count += item.alertCount || 0;
+      nodeMap.get(sourceId)!.count += item.alertCount || 0;
+      nodeMap.get(matchId)!.count += item.alertCount || 0;
+      nodeMap.get(workflowId)!.count += item.alertCount || 0;
+      nodeMap.get(stateId)!.count += item.alertCount || 0;
+
+      // Create connections
+      connectionSet.add(`${projectId}-${feedId}`);
+      connectionSet.add(`${feedId}-${sourceId}`);
+      connectionSet.add(`${sourceId}-${matchId}`);
+      connectionSet.add(`${matchId}-${workflowId}`);
+      connectionSet.add(`${workflowId}-${stateId}`);
+    });
+
+    const nodes = Array.from(nodeMap.values());
+    
+    // Position nodes using a force-directed approach
+    const levelWidth = dimensions.width / 6;
+    const padding = 100;
+
+    // Group nodes by level
+    const nodesByLevel = new Map<number, NetworkNode[]>();
+    for (let i = 0; i <= 5; i++) {
+      nodesByLevel.set(i, nodes.filter(n => n.level === i));
+    }
+
+    // Position nodes level by level
+    nodesByLevel.forEach((levelNodes, level) => {
+      const x = padding + level * levelWidth;
+      const availableHeight = dimensions.height - 2 * padding;
+      
+      if (levelNodes.length === 1) {
+        levelNodes[0].x = x;
+        levelNodes[0].y = dimensions.height / 2;
+      } else {
+        levelNodes.forEach((node, index) => {
+          node.x = x;
+          node.y = padding + (index * availableHeight) / (levelNodes.length - 1);
+        });
       }
     });
 
-    console.log('✅ Created nodes:', nodeMap.size);
-    console.log('✅ Created edge connections:', edgeSet.size);
+    // Create connection paths
+    const connections: Connection[] = Array.from(connectionSet).map(connStr => {
+      const [fromId, toId] = connStr.split('-').reduce((acc, part, index, arr) => {
+        const midPoint = Math.floor(arr.length / 2);
+        if (index < midPoint) {
+          acc[0] += (acc[0] ? '-' : '') + part;
+        } else {
+          acc[1] += (acc[1] ? '-' : '') + part;
+        }
+        return acc;
+      }, ['', '']);
 
-    // Create edges array
-    const edges: Edge[] = Array.from(edgeSet).map((edgeId, index) => {
-      const [sourceId, targetId] = edgeId.split('->');
+      const fromNode = nodeMap.get(fromId);
+      const toNode = nodeMap.get(toId);
+
+      if (!fromNode || !toNode) return null;
+
+      // Create curved path
+      const dx = toNode.x - fromNode.x;
+      const dy = toNode.y - fromNode.y;
+      const controlPointOffset = Math.abs(dx) * 0.4;
+
+      const path = `M ${fromNode.x + 80} ${fromNode.y} C ${fromNode.x + 80 + controlPointOffset} ${fromNode.y}, ${toNode.x - controlPointOffset} ${toNode.y}, ${toNode.x - 80} ${toNode.y}`;
+
       return {
-        id: `edge-${index}`,
-        source: sourceId,
-        target: targetId,
-        type: 'smoothstep',
-        animated: true,
-        style: {
-          stroke: '#64748b',
-          strokeWidth: 3,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: '#64748b',
-        },
+        from: fromId,
+        to: toId,
+        path
       };
-    });
+    }).filter(Boolean) as Connection[];
 
-    const finalNodes = Array.from(nodeMap.values());
-    console.log('🎯 Final result:', { 
-      nodes: finalNodes.length, 
-      edges: edges.length,
-      nodesSample: finalNodes.slice(0, 3).map(n => ({ id: n.id, label: n.data.label }))
-    });
+    return { nodes, connections };
+  }, [data, selectedProject, dimensions]);
 
-    return {
-      initialNodes: finalNodes,
-      initialEdges: edges,
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (svgRef.current) {
+        const container = svgRef.current.parentElement;
+        if (container) {
+          setDimensions({
+            width: Math.max(1400, container.clientWidth),
+            height: Math.max(900, container.clientHeight)
+          });
+        }
+      }
     };
-  }, [data, selectedProject]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  const onConnect = useCallback(() => {
-    // Prevent manual connections in this read-only flowchart
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  function getNodeColor(type: string): string {
+  const getNodeColor = (type: string) => {
     const colors = {
-      project: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      feed: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      source: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      match: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      workflow: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      state: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+      project: '#475569', // slate-600
+      feed: '#3b82f6',    // blue-500
+      source: '#10b981',  // green-500
+      match: '#f59e0b',   // orange-500
+      workflow: '#ef4444', // red-500
+      state: '#8b5cf6'    // purple-500
     };
     return colors[type as keyof typeof colors] || '#6b7280';
-  }
-
-  // Custom node component
-  const CustomNode = ({ data }: { data: any }) => (
-    <div className="flex flex-col items-center justify-center h-full">
-      <div className="font-semibold text-sm mb-1 text-center">
-        {data.label && data.label.length > 20 ? `${data.label.substring(0, 20)}...` : data.label}
-      </div>
-      <div className="text-xs opacity-80">
-        {data.count} alerts
-      </div>
-    </div>
-  );
-
-  const nodeTypes = {
-    default: CustomNode,
   };
 
-  console.log('🖼️ FlowchartView render:', { 
-    nodesCount: nodes.length, 
-    edgesCount: edges.length,
-    selectedProject,
-    dataLength: data.length 
-  });
-
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="h-full flex flex-col bg-slate-900">
       {/* Header */}
-      <div className="p-6 bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50">
-        <h3 className="text-2xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          Network Workflow Flowchart
-        </h3>
+      <div className="p-4 bg-slate-800 border-b border-slate-700">
+        <h3 className="text-lg font-semibold text-white mb-2">Network Workflow Flowchart</h3>
         <div className="flex items-center gap-4">
           <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-64 bg-slate-700/50 border-slate-600 text-white backdrop-blur-sm">
+            <SelectTrigger className="w-64 bg-slate-700 border-slate-600 text-white">
               <SelectValue placeholder="Select a project" />
             </SelectTrigger>
             <SelectContent className="bg-slate-700 border-slate-600">
@@ -284,70 +293,109 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* React Flow Canvas */}
-      <div className="flex-1 relative">
-        {nodes.length > 0 ? (
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            fitView
-            fitViewOptions={{
-              padding: 0.1,
-              includeHiddenNodes: false,
-            }}
-            className="react-flow-dark-theme"
-            panOnScroll
-            panOnDrag={[1, 2]}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-          >
-            <Background 
-              color="#475569" 
-              gap={20} 
-              size={1}
-              style={{ opacity: 0.3 }}
+      {/* Main Flowchart */}
+      <div className="flex-1 overflow-auto relative">
+        <svg
+          ref={svgRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+          className="min-w-full min-h-full"
+        >
+          {/* Connections */}
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 10 3.5, 0 7"
+                fill="#64748b"
+              />
+            </marker>
+          </defs>
+          
+          {connections.map((conn, index) => (
+            <path
+              key={index}
+              d={conn.path}
+              stroke="#64748b"
+              strokeWidth="2"
+              fill="none"
+              markerEnd="url(#arrowhead)"
+              opacity="0.7"
             />
-            <Controls 
-              className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
-            />
-            <MiniMap 
-              className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
-              nodeColor={() => '#64748b'}
-              maskColor="rgba(0, 0, 0, 0.2)"
-            />
-          </ReactFlow>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-white text-lg">
-              {data.length === 0 ? 'No workflow data available' : 'No data available for the selected project'}
-            </div>
-          </div>
-        )}
+          ))}
+
+          {/* Nodes */}
+          {nodes.map(node => (
+            <g key={node.id} transform={`translate(${node.x}, ${node.y})`}>
+              <rect
+                x="-80"
+                y="-25"
+                width="160"
+                height="50"
+                rx="8"
+                fill={getNodeColor(node.type)}
+                stroke="#374151"
+                strokeWidth="2"
+                className="drop-shadow-lg"
+              />
+              <text
+                x="0"
+                y="-5"
+                textAnchor="middle"
+                className="fill-white text-sm font-medium"
+                style={{ fontSize: '13px' }}
+              >
+                {node.label.length > 18 ? `${node.label.substring(0, 18)}...` : node.label}
+              </text>
+              <text
+                x="0"
+                y="12"
+                textAnchor="middle"
+                className="fill-white text-xs opacity-80"
+                style={{ fontSize: '11px' }}
+              >
+                {node.count} alerts
+              </text>
+            </g>
+          ))}
+        </svg>
       </div>
 
       {/* Legend */}
-      <div className="p-6 bg-slate-800/50 backdrop-blur-sm border-t border-slate-700/50">
-        <h4 className="font-semibold text-white mb-4">Legend</h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[
-            { type: 'project', label: 'Director Projects' },
-            { type: 'feed', label: 'Feed Names' },
-            { type: 'source', label: 'Sources' },
-            { type: 'match', label: 'Match Process' },
-            { type: 'workflow', label: 'Workflows' },
-            { type: 'state', label: 'End States' },
-          ].map(({ type, label }) => (
-            <div key={type} className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/30 backdrop-blur-sm">
-              <div 
-                className="w-4 h-4 rounded"
-                style={{ background: getNodeColor(type) }}
-              ></div>
-              <span className="text-sm text-slate-300 font-medium">{label}</span>
-            </div>
-          ))}
+      <div className="p-4 bg-slate-800 border-t border-slate-700">
+        <h4 className="font-semibold text-white mb-3">Legend</h4>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-slate-600 rounded"></div>
+            <span className="text-sm text-slate-300">Director Project</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+            <span className="text-sm text-slate-300">Feed Names</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-500 rounded"></div>
+            <span className="text-sm text-slate-300">Sources</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-orange-500 rounded"></div>
+            <span className="text-sm text-slate-300">Match Process</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-red-500 rounded"></div>
+            <span className="text-sm text-slate-300">Workflows</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-purple-500 rounded"></div>
+            <span className="text-sm text-slate-300">End States</span>
+          </div>
         </div>
       </div>
     </div>
