@@ -53,21 +53,53 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     // Define column positions and spacing
     const columnWidth = 280;
     const columnSpacing = 120;
-    const nodeHeight = 80;
     const nodeSpacing = 120;
 
-    // Track node counts for positioning
-    const levelCounts = new Map<number, number>();
-    
-    // First pass: create nodes and count by level
+    // First pass: create nodes
     filteredData.forEach(item => {
       const nodes = [
-        { id: `project-${item.directorProject}`, label: item.directorProject, type: 'project' as const, level: 0 },
-        { id: `feed-${item.directorFeedname}`, label: item.directorFeedname || 'Unknown Feed', type: 'feed' as const, level: 1 },
-        { id: `source-${item.scmSource}`, label: item.scmSource || 'Unknown Source', type: 'source' as const, level: 2 },
-        { id: `match-${item.matchProcess}`, label: item.matchProcess || 'Unknown Match', type: 'match' as const, level: 3 },
-        { id: `workflow-${item.workflow}`, label: item.workflow, type: 'workflow' as const, level: 4 },
-        { id: `state-${item.state}`, label: item.state, type: 'state' as const, level: 5 },
+        { 
+          id: `project-${item.directorProject}`, 
+          label: item.directorProject, 
+          type: 'project' as const, 
+          level: 0,
+          value: item.directorProject
+        },
+        { 
+          id: `feed-${item.directorFeedname || 'unknown'}`, 
+          label: item.directorFeedname || 'Unknown Feed', 
+          type: 'feed' as const, 
+          level: 1,
+          value: item.directorFeedname || 'unknown'
+        },
+        { 
+          id: `source-${item.scmSource || 'unknown'}`, 
+          label: item.scmSource || 'Unknown Source', 
+          type: 'source' as const, 
+          level: 2,
+          value: item.scmSource || 'unknown'
+        },
+        { 
+          id: `match-${item.matchProcess || 'unknown'}`, 
+          label: item.matchProcess || 'Unknown Match', 
+          type: 'match' as const, 
+          level: 3,
+          value: item.matchProcess || 'unknown'
+        },
+        { 
+          id: `workflow-${item.workflow}`, 
+          label: item.workflow, 
+          type: 'workflow' as const, 
+          level: 4,
+          value: item.workflow
+        },
+        { 
+          id: `state-${item.state}`, 
+          label: item.state, 
+          type: 'state' as const, 
+          level: 5,
+          value: item.state
+        },
       ];
 
       nodes.forEach(node => {
@@ -96,24 +128,27 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               fontWeight: '500',
             },
           });
-          
-          levelCounts.set(node.level, (levelCounts.get(node.level) || 0) + 1);
         }
         
-        nodeMap.get(node.id)!.data.count += item.alertCount || 0;
+        const existingNode = nodeMap.get(node.id);
+        if (existingNode) {
+          existingNode.data.count += item.alertCount || 0;
+        }
       });
 
-      // Create edges
+      // Create edges - ensure all source and target nodes exist
       const connections = [
-        [`project-${item.directorProject}`, `feed-${item.directorFeedname}`],
-        [`feed-${item.directorFeedname}`, `source-${item.scmSource}`],
-        [`source-${item.scmSource}`, `match-${item.matchProcess}`],
-        [`match-${item.matchProcess}`, `workflow-${item.workflow}`],
+        [`project-${item.directorProject}`, `feed-${item.directorFeedname || 'unknown'}`],
+        [`feed-${item.directorFeedname || 'unknown'}`, `source-${item.scmSource || 'unknown'}`],
+        [`source-${item.scmSource || 'unknown'}`, `match-${item.matchProcess || 'unknown'}`],
+        [`match-${item.matchProcess || 'unknown'}`, `workflow-${item.workflow}`],
         [`workflow-${item.workflow}`, `state-${item.state}`],
       ];
 
       connections.forEach(([source, target]) => {
-        edgeSet.add(`${source}->${target}`);
+        if (nodeMap.has(source) && nodeMap.has(target)) {
+          edgeSet.add(`${source}->${target}`);
+        }
       });
     });
 
@@ -153,17 +188,12 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         style: {
           stroke: '#64748b',
           strokeWidth: 3,
-          strokeDasharray: '0',
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 20,
           height: 20,
           color: '#64748b',
-        },
-        labelStyle: {
-          fill: '#64748b',
-          fontWeight: 500,
         },
       };
     });
@@ -209,7 +239,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const CustomNode = ({ data }: { data: any }) => (
     <div className="flex flex-col items-center justify-center h-full">
       <div className="font-semibold text-sm mb-1 text-center">
-        {data.label.length > 20 ? `${data.label.substring(0, 20)}...` : data.label}
+        {data.label && data.label.length > 20 ? `${data.label.substring(0, 20)}...` : data.label}
       </div>
       <div className="text-xs opacity-80">
         {data.count} alerts
@@ -220,6 +250,13 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const nodeTypes = {
     default: CustomNode,
   };
+
+  console.log('FlowchartView render:', { 
+    nodesCount: nodes.length, 
+    edgesCount: edges.length,
+    selectedProject,
+    dataLength: data.length 
+  });
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -247,48 +284,54 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
       {/* React Flow Canvas */}
       <div className="flex-1 relative">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{
-            padding: 0.2,
-            includeHiddenNodes: false,
-          }}
-          className="react-flow-dark-theme"
-          style={{
-            background: 'transparent',
-          }}
-          panOnScroll
-          selectionOnDrag
-          panOnDrag={[1, 2]}
-        >
-          <Background 
-            color="#475569" 
-            gap={20} 
-            size={1}
-            style={{ opacity: 0.3 }}
-          />
-          <Controls 
-            className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
-          />
-          <MiniMap 
-            className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
+        {nodes.length > 0 ? (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            fitView
+            fitViewOptions={{
+              padding: 0.2,
+              includeHiddenNodes: false,
+            }}
+            className="react-flow-dark-theme"
             style={{
-              backgroundColor: 'rgba(51, 65, 85, 0.8)',
+              background: 'transparent',
             }}
-            nodeColor={(node) => {
-              const nodeData = node.data as { type?: string };
-              const type = nodeData?.type || 'default';
-              return getNodeColor(type).includes('gradient') ? '#64748b' : getNodeColor(type);
-            }}
-            maskColor="rgba(0, 0, 0, 0.2)"
-          />
-        </ReactFlow>
+            panOnScroll
+            selectionOnDrag
+            panOnDrag={[1, 2]}
+          >
+            <Background 
+              color="#475569" 
+              gap={20} 
+              size={1}
+              style={{ opacity: 0.3 }}
+            />
+            <Controls 
+              className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
+            />
+            <MiniMap 
+              className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
+              style={{
+                backgroundColor: 'rgba(51, 65, 85, 0.8)',
+              }}
+              nodeColor={(node) => {
+                const nodeData = node.data as { type?: string };
+                const type = nodeData?.type || 'default';
+                return getNodeColor(type).includes('gradient') ? '#64748b' : getNodeColor(type);
+              }}
+              maskColor="rgba(0, 0, 0, 0.2)"
+            />
+          </ReactFlow>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-white text-lg">No data available for the selected project</div>
+          </div>
+        )}
       </div>
 
       {/* Legend */}
