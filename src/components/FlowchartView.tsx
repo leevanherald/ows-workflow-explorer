@@ -41,88 +41,97 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
   // Build network data with React Flow format
   const { initialNodes, initialEdges } = useMemo(() => {
+    console.log('Building flowchart data...', { selectedProject, dataLength: data.length });
+    
     let filteredData = selectedProject === 'all' 
       ? data 
       : data.filter(item => item.directorProject === selectedProject);
 
-    if (filteredData.length === 0) return { initialNodes: [], initialEdges: [] };
+    console.log('Filtered data length:', filteredData.length);
+
+    if (filteredData.length === 0) {
+      console.log('No data to display');
+      return { initialNodes: [], initialEdges: [] };
+    }
 
     const nodeMap = new Map<string, NetworkNode>();
-    const edgeSet = new Set<string>();
+    const edgeConnections: Array<[string, string]> = [];
     
-    // Define column positions and spacing
-    const columnWidth = 280;
-    const columnSpacing = 120;
-    const nodeSpacing = 120;
+    // Define spacing
+    const columnWidth = 300;
+    const nodeHeight = 80;
+    const verticalSpacing = 120;
 
-    // First pass: create nodes
-    filteredData.forEach(item => {
-      const nodes = [
+    // Process each data item
+    filteredData.forEach((item, index) => {
+      console.log(`Processing item ${index}:`, item);
+
+      // Create node definitions with safe IDs
+      const nodeDefinitions = [
         { 
           id: `project-${item.directorProject}`, 
           label: item.directorProject, 
           type: 'project' as const, 
-          level: 0,
-          value: item.directorProject
+          level: 0
         },
         { 
-          id: `feed-${item.directorFeedname || 'unknown'}`, 
-          label: item.directorFeedname || 'Unknown Feed', 
+          id: `feed-${item.directorFeedname}`, 
+          label: item.directorFeedname, 
           type: 'feed' as const, 
-          level: 1,
-          value: item.directorFeedname || 'unknown'
+          level: 1
         },
         { 
-          id: `source-${item.scmSource || 'unknown'}`, 
-          label: item.scmSource || 'Unknown Source', 
+          id: `source-${item.scmSource}`, 
+          label: item.scmSource, 
           type: 'source' as const, 
-          level: 2,
-          value: item.scmSource || 'unknown'
+          level: 2
         },
         { 
-          id: `match-${item.matchProcess || 'unknown'}`, 
-          label: item.matchProcess || 'Unknown Match', 
+          id: `match-${item.matchProcess}`, 
+          label: item.matchProcess, 
           type: 'match' as const, 
-          level: 3,
-          value: item.matchProcess || 'unknown'
+          level: 3
         },
         { 
           id: `workflow-${item.workflow}`, 
           label: item.workflow, 
           type: 'workflow' as const, 
-          level: 4,
-          value: item.workflow
+          level: 4
         },
         { 
           id: `state-${item.state}`, 
           label: item.state, 
           type: 'state' as const, 
-          level: 5,
-          value: item.state
+          level: 5
         },
       ];
 
-      nodes.forEach(node => {
-        if (!nodeMap.has(node.id)) {
-          nodeMap.set(node.id, {
-            id: node.id,
+      // Create or update nodes
+      nodeDefinitions.forEach(nodeDef => {
+        if (!nodeMap.has(nodeDef.id)) {
+          nodeMap.set(nodeDef.id, {
+            id: nodeDef.id,
             type: 'default',
-            position: { x: 0, y: 0 },
+            position: { x: 0, y: 0 }, // Will be set later
             data: {
-              label: node.label,
+              label: nodeDef.label,
               count: 0,
-              type: node.type,
-              details: `${node.type}: ${node.label}`,
+              type: nodeDef.type,
+              details: `${nodeDef.type}: ${nodeDef.label}`,
             },
             sourcePosition: Position.Right,
             targetPosition: Position.Left,
             style: {
-              background: getNodeColor(node.type),
+              background: getNodeColor(nodeDef.type),
               color: 'white',
               border: '2px solid rgba(255,255,255,0.2)',
               borderRadius: '12px',
               padding: '12px 16px',
-              minWidth: '200px',
+              minWidth: '180px',
+              minHeight: '60px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
               fontSize: '14px',
               fontWeight: '500',
@@ -130,29 +139,32 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           });
         }
         
-        const existingNode = nodeMap.get(node.id);
+        // Update count
+        const existingNode = nodeMap.get(nodeDef.id);
         if (existingNode) {
           existingNode.data.count += item.alertCount || 0;
         }
       });
 
-      // Create edges - ensure all source and target nodes exist
-      const connections = [
-        [`project-${item.directorProject}`, `feed-${item.directorFeedname || 'unknown'}`],
-        [`feed-${item.directorFeedname || 'unknown'}`, `source-${item.scmSource || 'unknown'}`],
-        [`source-${item.scmSource || 'unknown'}`, `match-${item.matchProcess || 'unknown'}`],
-        [`match-${item.matchProcess || 'unknown'}`, `workflow-${item.workflow}`],
+      // Create edge connections
+      const connections: Array<[string, string]> = [
+        [`project-${item.directorProject}`, `feed-${item.directorFeedname}`],
+        [`feed-${item.directorFeedname}`, `source-${item.scmSource}`],
+        [`source-${item.scmSource}`, `match-${item.matchProcess}`],
+        [`match-${item.matchProcess}`, `workflow-${item.workflow}`],
         [`workflow-${item.workflow}`, `state-${item.state}`],
       ];
 
       connections.forEach(([source, target]) => {
-        if (nodeMap.has(source) && nodeMap.has(target)) {
-          edgeSet.add(`${source}->${target}`);
+        if (source && target && !edgeConnections.some(([s, t]) => s === source && t === target)) {
+          edgeConnections.push([source, target]);
         }
       });
     });
 
-    // Position nodes in columns with proper spacing
+    console.log('Created nodes:', nodeMap.size);
+
+    // Position nodes by level
     const nodesByLevel = new Map<number, NetworkNode[]>();
     Array.from(nodeMap.values()).forEach(node => {
       const level = getNodeLevel(node.data.type);
@@ -164,21 +176,18 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
     // Calculate positions
     nodesByLevel.forEach((levelNodes, level) => {
-      const x = level * (columnWidth + columnSpacing) + 100;
-      const totalHeight = levelNodes.length * nodeSpacing;
-      const startY = Math.max(100, (800 - totalHeight) / 2);
-
+      const x = level * columnWidth + 50;
       levelNodes.forEach((node, index) => {
         node.position = {
           x,
-          y: startY + index * nodeSpacing,
+          y: index * verticalSpacing + 50,
         };
       });
     });
 
-    // Create edges with beautiful styling
-    const edges: Edge[] = Array.from(edgeSet).map((edgeId, index) => {
-      const [sourceId, targetId] = edgeId.split('->');
+    // Create edges
+    const edges: Edge[] = edgeConnections.map((connection, index) => {
+      const [sourceId, targetId] = connection;
       return {
         id: `edge-${index}`,
         source: sourceId,
@@ -198,6 +207,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       };
     });
 
+    console.log('Created edges:', edges.length);
+
     return {
       initialNodes: Array.from(nodeMap.values()),
       initialEdges: edges,
@@ -207,7 +218,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const onConnect = useCallback((params: any) => {
+  const onConnect = useCallback(() => {
     // Prevent manual connections in this read-only flowchart
   }, []);
 
@@ -294,16 +305,13 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             nodeTypes={nodeTypes}
             fitView
             fitViewOptions={{
-              padding: 0.2,
+              padding: 0.1,
               includeHiddenNodes: false,
             }}
             className="react-flow-dark-theme"
-            style={{
-              background: 'transparent',
-            }}
             panOnScroll
-            selectionOnDrag
             panOnDrag={[1, 2]}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
           >
             <Background 
               color="#475569" 
@@ -316,20 +324,15 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             />
             <MiniMap 
               className="bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg"
-              style={{
-                backgroundColor: 'rgba(51, 65, 85, 0.8)',
-              }}
-              nodeColor={(node) => {
-                const nodeData = node.data as { type?: string };
-                const type = nodeData?.type || 'default';
-                return getNodeColor(type).includes('gradient') ? '#64748b' : getNodeColor(type);
-              }}
+              nodeColor={() => '#64748b'}
               maskColor="rgba(0, 0, 0, 0.2)"
             />
           </ReactFlow>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <div className="text-white text-lg">No data available for the selected project</div>
+            <div className="text-white text-lg">
+              {data.length === 0 ? 'No workflow data available' : 'No data available for the selected project'}
+            </div>
           </div>
         )}
       </div>
