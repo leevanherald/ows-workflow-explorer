@@ -1,4 +1,3 @@
-// FlowchartView.tsx
 
 import React, { useState, useMemo, useCallback } from "react";
 import {
@@ -40,6 +39,48 @@ interface NetworkNode extends Node {
   };
 }
 
+// Move CustomNode and nodeTypes outside component to prevent recreation
+const CustomNode = ({ data }: { data: any }) => (
+  <div className="flex flex-col items-center justify-center h-full relative px-2 py-1">
+    {/* Target Handle (left) */}
+    <Handle
+      type="target"
+      position={Position.Left}
+      style={{ background: "#555" }}
+    />
+
+    <div className="font-semibold text-sm mb-1 text-center">
+      {data.label && data.label.length > 20
+        ? `${data.label.substring(0, 20)}...`
+        : data.label}
+    </div>
+    <div className="text-xs opacity-80">{data.count} alerts</div>
+
+    {/* Source Handle (right) */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      style={{ background: "#555" }}
+    />
+  </div>
+);
+
+const nodeTypes = {
+  default: CustomNode,
+};
+
+function getNodeColor(type: string): string {
+  const colors = {
+    project: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    feed: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    source: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    match: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    workflow: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    state: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+  };
+  return colors[type as keyof typeof colors] || "#6b7280";
+}
+
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>("all");
 
@@ -50,10 +91,14 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   }, [data]);
 
   const { initialNodes, initialEdges } = useMemo(() => {
+    console.log(`Generating flow for project: ${selectedProject}`);
+    
     const filteredData =
       selectedProject === "all"
         ? data
         : data.filter((item) => item.directorProject === selectedProject);
+
+    console.log(`Filtered data length: ${filteredData.length}`);
 
     if (filteredData.length === 0)
       return { initialNodes: [], initialEdges: [] };
@@ -196,6 +241,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       };
     });
 
+    console.log(`Generated ${Array.from(nodeMap.values()).length} nodes and ${edges.length} edges`);
+
     return {
       initialNodes: Array.from(nodeMap.values()),
       initialEdges: edges,
@@ -205,59 +252,31 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+  // Update nodes and edges when initialNodes/initialEdges change
+  React.useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
+
   const onConnect = useCallback(() => {}, []);
 
-  function getNodeColor(type: string): string {
-    const colors = {
-      project: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      feed: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-      source: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-      match: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-      workflow: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-      state: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
-    };
-    return colors[type as keyof typeof colors] || "#6b7280";
-  }
-  const CustomNode = ({ data }: { data: any }) => (
-    <div className="flex flex-col items-center justify-center h-full relative px-2 py-1">
-      {/* Target Handle (left) */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ background: "#555" }}
-      />
-
-      <div className="font-semibold text-sm mb-1 text-center">
-        {data.label && data.label.length > 20
-          ? `${data.label.substring(0, 20)}...`
-          : data.label}
-      </div>
-      <div className="text-xs opacity-80">{data.count} alerts</div>
-
-      {/* Source Handle (right) */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: "#555" }}
-      />
-    </div>
-  );
-  const nodeTypes = {
-    default: CustomNode,
-  };
+  const handleProjectChange = useCallback((value: string) => {
+    console.log(`Project changed to: ${value}`);
+    setSelectedProject(value);
+  }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="w-full h-full min-h-[600px] flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="p-6 bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50">
         <h3 className="text-2xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
           Network Workflow Flowchart
         </h3>
         <div className="flex items-center gap-4">
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
+          <Select value={selectedProject} onValueChange={handleProjectChange}>
             <SelectTrigger className="w-64 bg-slate-700/50 border-slate-600 text-white backdrop-blur-sm">
               <SelectValue placeholder="Select a project" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-700 border-slate-600">
+            <SelectContent className="bg-slate-700 border-slate-600 z-50">
               <SelectItem value="all" className="text-white hover:bg-slate-600">
                 All Projects
               </SelectItem>
@@ -275,7 +294,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         </div>
       </div>
 
-      <div className="relative" style={{ height: 1000, width: 1000 }}>
+      <div className="flex-1 w-full h-full" style={{ minHeight: '500px' }}>
         {nodes.length > 0 ? (
           <ReactFlow
             nodes={nodes}
@@ -286,10 +305,11 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             nodeTypes={nodeTypes}
             fitView
             fitViewOptions={{ padding: 0.1, includeHiddenNodes: false }}
-            className="react-flow-dark-theme"
+            className="react-flow-dark-theme w-full h-full"
             panOnScroll
             panOnDrag={[1, 2]}
             defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+            key={selectedProject} // Force re-render when project changes
           >
             <Background
               color="#475569"
