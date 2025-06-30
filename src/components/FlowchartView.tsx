@@ -162,9 +162,9 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       {/* Flowchart Content */}
       <div className="flex-1 overflow-auto p-6">
         {visibleNodes.length > 0 ? (
-          <div className="relative" style={{ width: '2000px', height: '1000px' }}>
+          <div className="relative" style={{ width: '2000px', height: '500px' }}>
             {/* Connections with arrows */}
-            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
               <defs>
                 <marker
                   id="arrowhead"
@@ -208,7 +208,6 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                 );
               })}
             </svg>
-
             {/* Nodes */}
             {visibleNodes.map(node => {
               const hasChildren = flowchartData.connections.some(conn => conn.from === node.id);
