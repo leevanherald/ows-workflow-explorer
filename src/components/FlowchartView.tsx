@@ -163,17 +163,35 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       <div className="flex-1 overflow-auto p-6">
         {visibleNodes.length > 0 ? (
           <div className="relative" style={{ width: '2000px', height: '1000px' }}>
-            {/* Connections */}
+            {/* Connections with arrows */}
             <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+              <defs>
+                <marker
+                  id="arrowhead"
+                  markerWidth="12"
+                  markerHeight="8"
+                  refX="11"
+                  refY="4"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <polygon
+                    points="0 0, 12 4, 0 8"
+                    fill="#64748b"
+                    stroke="#64748b"
+                    strokeWidth="1"
+                  />
+                </marker>
+              </defs>
               {visibleConnections.map((conn, index) => {
                 const fromNode = visibleNodes.find(n => n.id === conn.from);
                 const toNode = visibleNodes.find(n => n.id === conn.to);
                 if (!fromNode || !toNode) return null;
 
-                const fromX = fromNode.x + 200; // Node width
-                const fromY = fromNode.y + 50; // Half node height
+                const fromX = fromNode.x + 192; // Node width (48 * 4 = 192px)
+                const fromY = fromNode.y + 48; // Half node height (24 * 2 = 48px)
                 const toX = toNode.x;
-                const toY = toNode.y + 50;
+                const toY = toNode.y + 48;
 
                 return (
                   <line
@@ -183,26 +201,12 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                     x2={toX}
                     y2={toY}
                     stroke="#64748b"
-                    strokeWidth="2"
+                    strokeWidth="3"
                     markerEnd="url(#arrowhead)"
+                    className="transition-all duration-200 hover:stroke-blue-400"
                   />
                 );
               })}
-              <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="10"
-                  markerHeight="7"
-                  refX="9"
-                  refY="3.5"
-                  orient="auto"
-                >
-                  <polygon
-                    points="0 0, 10 3.5, 0 7"
-                    fill="#64748b"
-                  />
-                </marker>
-              </defs>
             </svg>
 
             {/* Nodes */}
