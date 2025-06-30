@@ -46,12 +46,11 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     const connections: { from: string; to: string }[] = [];
     const nodeMap = new Map<string, FlowNode>();
 
-    // Enhanced positioning with better spacing
+    // Professional positioning with consistent spacing
     const levelCounts = new Map<number, number>();
-    const levelWidth = 280;
-    const nodeHeight = 140;
-    const verticalSpacing = 160;
-    const levelOffsets = new Map<number, number>();
+    const levelWidth = 260;
+    const nodeHeight = 100;
+    const verticalSpacing = 120;
 
     filteredData.forEach(item => {
       const hierarchy = [
@@ -73,7 +72,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             count: 0,
             expanded: false,
             x: nodeData.level * levelWidth + 40,
-            y: currentLevelCount * verticalSpacing + 60
+            y: currentLevelCount * verticalSpacing + 50
           };
 
           nodeMap.set(nodeData.id, node);
@@ -111,26 +110,26 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
   const getNodeColor = (type: string): string => {
     const colors = {
-      project: 'from-indigo-600 via-purple-600 to-blue-700',
-      feed: 'from-pink-500 via-rose-500 to-red-600',
-      source: 'from-cyan-500 via-blue-500 to-indigo-500',
-      match: 'from-emerald-500 via-green-500 to-teal-600',
-      workflow: 'from-amber-500 via-orange-500 to-red-500',
-      state: 'from-violet-500 via-purple-500 to-indigo-600',
+      project: 'bg-slate-700',
+      feed: 'bg-blue-600',
+      source: 'bg-indigo-600',
+      match: 'bg-green-600',
+      workflow: 'bg-orange-600',
+      state: 'bg-purple-600',
     };
-    return colors[type as keyof typeof colors] || 'from-gray-500 to-gray-600';
+    return colors[type as keyof typeof colors] || 'bg-gray-600';
   };
 
-  const getNodeAccentColor = (type: string): string => {
-    const colors = {
-      project: 'border-indigo-300 shadow-indigo-500/25',
-      feed: 'border-pink-300 shadow-pink-500/25',
-      source: 'border-cyan-300 shadow-cyan-500/25',
-      match: 'border-emerald-300 shadow-emerald-500/25',
-      workflow: 'border-amber-300 shadow-amber-500/25',
-      state: 'border-violet-300 shadow-violet-500/25',
+  const getNodeBorder = (type: string): string => {
+    const borders = {
+      project: 'border-slate-300',
+      feed: 'border-blue-300',
+      source: 'border-indigo-300',
+      match: 'border-green-300',
+      workflow: 'border-orange-300',
+      state: 'border-purple-300',
     };
-    return colors[type as keyof typeof colors] || 'border-gray-300 shadow-gray-500/25';
+    return borders[type as keyof typeof borders] || 'border-gray-300';
   };
 
   const isNodeVisible = (node: FlowNode): boolean => {
@@ -146,84 +145,71 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   );
 
   // Calculate container dimensions
-  const maxX = visibleNodes.reduce((max, node) => Math.max(max, node.x + 240), 0);
-  const maxY = visibleNodes.reduce((max, node) => Math.max(max, node.y + 120), 0);
+  const maxX = visibleNodes.reduce((max, node) => Math.max(max, node.x + 220), 0);
+  const maxY = visibleNodes.reduce((max, node) => Math.max(max, node.y + 100), 0);
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Enhanced Header */}
-      <div className="px-8 py-6 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-lg">
+    <div className="h-full flex flex-col bg-white">
+      {/* Professional Header */}
+      <div className="px-6 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
-              Workflow Intelligence Dashboard
+            <h3 className="text-2xl font-semibold text-gray-900 mb-1">
+              Workflow Management System
             </h3>
-            <p className="text-slate-600 text-base font-medium">
-              Interactive customer journey visualization with real-time insights
+            <p className="text-gray-600 text-sm">
+              Customer journey workflow visualization and monitoring
             </p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-72 h-12 bg-white/80 backdrop-blur-sm border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
-                <SelectValue placeholder="Select Project Scope" />
+              <SelectTrigger className="w-64 h-10 bg-white border-gray-300">
+                <SelectValue placeholder="Select Project" />
               </SelectTrigger>
-              <SelectContent className="bg-white/95 backdrop-blur-xl border-white/30 shadow-2xl rounded-xl">
-                <SelectItem value="all" className="text-slate-700 hover:bg-indigo-50 rounded-lg m-1">
-                  🌐 All Projects
+              <SelectContent className="bg-white border-gray-200">
+                <SelectItem value="all" className="text-gray-700">
+                  All Projects
                 </SelectItem>
                 {projects.map(project => (
-                  <SelectItem key={project} value={project} className="text-slate-700 hover:bg-indigo-50 rounded-lg m-1">
-                    📁 {project}
+                  <SelectItem key={project} value={project} className="text-gray-700">
+                    {project}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <div className="text-sm text-slate-500 bg-white/60 px-4 py-2 rounded-full border border-white/30">
-              💡 Click nodes to explore workflow paths
+            <div className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded border">
+              Click nodes to expand workflow
             </div>
           </div>
         </div>
       </div>
 
-      {/* Enhanced Flowchart Content */}
-      <div className="flex-1 overflow-auto">
+      {/* Flowchart Content */}
+      <div className="flex-1 overflow-auto bg-gray-50">
         {visibleNodes.length > 0 ? (
           <div 
-            className="relative p-8 min-h-full"
+            className="relative p-6"
             style={{ 
-              width: Math.max(maxX + 80, 1200), 
-              height: Math.max(maxY + 80, 600) 
+              width: Math.max(maxX + 60, 1000), 
+              height: Math.max(maxY + 60, 500) 
             }}
           >
-            {/* Enhanced SVG Connections */}
+            {/* Professional SVG Connections */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
               <defs>
-                <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#64748b" stopOpacity="0.8" />
-                  <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#1e40af" stopOpacity="0.8" />
-                </linearGradient>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                  <feMerge> 
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
                 <marker
                   id="arrowhead"
-                  markerWidth="14"
-                  markerHeight="10"
-                  refX="13"
-                  refY="5"
+                  markerWidth="10"
+                  markerHeight="8"
+                  refX="9"
+                  refY="4"
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
                   <polygon
-                    points="0 0, 14 5, 0 10"
-                    fill="url(#connectionGradient)"
+                    points="0 0, 10 4, 0 8"
+                    fill="#6b7280"
                     stroke="none"
-                    filter="url(#glow)"
                   />
                 </marker>
               </defs>
@@ -232,31 +218,27 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                 const toNode = visibleNodes.find(n => n.id === conn.to);
                 if (!fromNode || !toNode) return null;
 
-                const fromX = fromNode.x + 240;
-                const fromY = fromNode.y + 60;
+                const fromX = fromNode.x + 220;
+                const fromY = fromNode.y + 50;
                 const toX = toNode.x;
-                const toY = toNode.y + 60;
+                const toY = toNode.y + 50;
 
                 return (
-                  <g key={`${conn.from}-${conn.to}-${index}`}>
-                    <line
-                      x1={fromX}
-                      y1={fromY}
-                      x2={toX}
-                      y2={toY}
-                      stroke="url(#connectionGradient)"
-                      strokeWidth="4"
-                      markerEnd="url(#arrowhead)"
-                      className="transition-all duration-300 hover:stroke-width-6"
-                      filter="url(#glow)"
-                      opacity="0.8"
-                    />
-                  </g>
+                  <line
+                    key={`${conn.from}-${conn.to}-${index}`}
+                    x1={fromX}
+                    y1={fromY}
+                    x2={toX}
+                    y2={toY}
+                    stroke="#6b7280"
+                    strokeWidth="2"
+                    markerEnd="url(#arrowhead)"
+                  />
                 );
               })}
             </svg>
 
-            {/* Enhanced Nodes */}
+            {/* Professional Nodes */}
             {visibleNodes.map(node => {
               const hasChildren = flowchartData.connections.some(conn => conn.from === node.id);
               const isExpanded = expandedNodes.has(node.id);
@@ -264,7 +246,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               return (
                 <div
                   key={node.id}
-                  className={`absolute cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-2 group ${hasChildren ? 'hover:shadow-2xl' : 'hover:shadow-xl'}`}
+                  className={`absolute cursor-pointer transition-all duration-200 ${hasChildren ? 'hover:shadow-lg' : 'hover:shadow-md'}`}
                   style={{ 
                     left: node.x, 
                     top: node.y,
@@ -272,41 +254,35 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                   }}
                   onClick={() => hasChildren && toggleNode(node.id)}
                 >
-                  <div className={`bg-gradient-to-br ${getNodeColor(node.type)} text-white rounded-2xl p-6 w-60 h-28 relative overflow-hidden border-2 ${getNodeAccentColor(node.type)} shadow-xl backdrop-blur-sm`}>
-                    {/* Background Pattern */}
-                    <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-2xl"></div>
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/5 rounded-full -translate-y-10 translate-x-10"></div>
-                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
-                    
-                    {/* Content */}
-                    <div className="relative z-10 h-full flex flex-col justify-between">
-                      <div className="flex items-start gap-3">
+                  <div className={`${getNodeColor(node.type)} text-white rounded-lg p-4 w-52 h-24 border-2 ${getNodeBorder(node.type)} shadow-sm`}>
+                    <div className="h-full flex flex-col justify-between">
+                      <div className="flex items-start gap-2">
                         {hasChildren && (
-                          <div className="flex-shrink-0 mt-1 p-1 rounded-full bg-white/20 transition-transform duration-200 group-hover:scale-110">
+                          <div className="flex-shrink-0 mt-0.5 p-1 rounded bg-white/20">
                             {isExpanded ? (
-                              <ChevronDown className="w-4 h-4" />
+                              <ChevronDown className="w-3 h-3" />
                             ) : (
-                              <ChevronRight className="w-4 h-4" />
+                              <ChevronRight className="w-3 h-3" />
                             )}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-base truncate mb-1 leading-tight">
+                          <div className="font-medium text-sm truncate mb-1">
                             {node.label}
                           </div>
-                          <div className="text-xs opacity-90 capitalize font-medium tracking-wide">
-                            {node.type.replace(/([A-Z])/g, ' $1').trim()}
+                          <div className="text-xs opacity-80 capitalize">
+                            {node.type}
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
+                        <div className="flex items-center gap-1 bg-white/20 rounded px-2 py-1">
                           <AlertCircle className="w-3 h-3" />
-                          <span className="text-xs font-bold">{node.count}</span>
+                          <span className="text-xs font-medium">{node.count}</span>
                         </div>
                         {hasChildren && (
-                          <div className="text-xs opacity-75 bg-white/10 rounded-full px-2 py-1">
+                          <div className="text-xs opacity-70">
                             {isExpanded ? 'Collapse' : 'Expand'}
                           </div>
                         )}
@@ -319,12 +295,12 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center p-12 bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-white/30">
-              <div className="text-6xl mb-4">📊</div>
-              <div className="text-xl font-bold text-slate-700 mb-2">
+            <div className="text-center p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="text-4xl mb-3 text-gray-400">📊</div>
+              <div className="text-lg font-medium text-gray-700 mb-2">
                 {data.length === 0 ? 'No workflow data available' : 'No data for selected project'}
               </div>
-              <div className="text-slate-500">
+              <div className="text-gray-500 text-sm">
                 {data.length === 0 ? 'Import your workflow data to get started' : 'Try selecting "All Projects" or a different project'}
               </div>
             </div>
@@ -332,23 +308,21 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         )}
       </div>
 
-      {/* Enhanced Legend */}
-      <div className="px-8 py-6 bg-white/70 backdrop-blur-xl border-t border-white/20">
-        <h4 className="font-bold text-slate-800 mb-4 text-lg">Workflow Hierarchy Legend</h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Professional Legend */}
+      <div className="px-6 py-4 bg-white border-t border-gray-200">
+        <h4 className="font-medium text-gray-800 mb-3">Workflow Hierarchy</h4>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { type: 'project', label: 'Director Projects', icon: '🏢' },
-            { type: 'feed', label: 'Data Feeds', icon: '📡' },
-            { type: 'source', label: 'Sources', icon: '🔗' },
-            { type: 'match', label: 'Match Process', icon: '🎯' },
-            { type: 'workflow', label: 'Workflows', icon: '⚡' },
-            { type: 'state', label: 'End States', icon: '🏁' },
-          ].map(({ type, label, icon }) => (
-            <div key={type} className="flex items-center gap-3 p-4 rounded-xl bg-white/60 backdrop-blur-sm border border-white/30 hover:bg-white/80 transition-all duration-200 hover:scale-105">
-              <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${getNodeColor(type)} flex items-center justify-center text-white font-bold shadow-lg`}>
-                <span className="text-xs">{icon}</span>
-              </div>
-              <span className="text-sm text-slate-700 font-medium">{label}</span>
+            { type: 'project', label: 'Director Projects' },
+            { type: 'feed', label: 'Data Feeds' },
+            { type: 'source', label: 'Sources' },
+            { type: 'match', label: 'Match Process' },
+            { type: 'workflow', label: 'Workflows' },
+            { type: 'state', label: 'End States' },
+          ].map(({ type, label }) => (
+            <div key={type} className="flex items-center gap-2 p-2 rounded border border-gray-200 bg-gray-50">
+              <div className={`w-4 h-4 rounded ${getNodeColor(type)}`}></div>
+              <span className="text-sm text-gray-700">{label}</span>
             </div>
           ))}
         </div>
