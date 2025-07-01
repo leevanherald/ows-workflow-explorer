@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Search, Filter, Download, TreePine, GitBranch, Table, Grid3X3, Flame, FileImage, FileText } from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -114,16 +113,11 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col w-full">
-      <div className="w-full px-6 py-6 flex-1 flex flex-col">
-        {/* Theme Toggle - Fixed Position */}
-        <div className="fixed top-6 right-6 z-50">
-          <ThemeToggle />
-        </div>
-
-        {/* Enhanced Header with Gradient - Full Width */}
-        <div className="mb-8 animate-fade-in w-full">
-          <div className="bg-gradient-hero rounded-2xl p-8 text-white shadow-xl mb-6 w-full">
+    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+      <div className="container mx-auto p-6 max-w-7xl flex-1 flex flex-col">
+        {/* Enhanced Header with Gradient */}
+        <div className="mb-8 animate-fade-in">
+          <div className="bg-gradient-hero rounded-2xl p-8 text-white shadow-xl mb-6">
             <div className="flex items-center gap-6">
               <div className="bg-white/20 backdrop-blur-lg rounded-xl p-4 border border-white/30">
                 <img 
