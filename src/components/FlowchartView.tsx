@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import SearchableSelect from '@/components/SearchableSelect';
 import { WorkflowData } from '@/data/mockData';
-import { ChevronRight, ChevronDown, AlertCircle } from 'lucide-react';
+import { ChevronRight, ChevronDown, AlertCircle, Upload, FileExcel } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { useToast } from '@/hooks/use-toast';
 
 interface FlowchartViewProps {
   data: WorkflowData[];
@@ -23,11 +26,73 @@ interface FlowNode {
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [uploadedData, setUploadedData] = useState<WorkflowData[]>([]);
+  const [isUsingUploadedData, setIsUsingUploadedData] = useState(false);
+  const { toast } = useToast();
+
+  // Use uploaded data if available, otherwise use prop data
+  const currentData = isUsingUploadedData ? uploadedData : data;
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        // Map Excel data to WorkflowData format
+        const mappedData: WorkflowData[] = jsonData.map((row: any, index: number) => ({
+          id: index + 1,
+          directorProject: row['Director Project'] || row['directorProject'] || 'Unknown Project',
+          directorFeedname: row['Director Feed'] || row['directorFeedname'] || 'Unknown Feed',
+          scmSource: row['SCM Source'] || row['scmSource'] || 'Unknown Source',
+          matchProcess: row['Match Process'] || row['matchProcess'] || 'Unknown Process',
+          workflow: row['Workflow'] || row['workflow'] || 'Unknown Workflow',
+          state: row['State'] || row['state'] || 'Unknown State',
+          alertCount: parseInt(row['Alert Count'] || row['alertCount'] || '1'),
+          lastUpdated: row['Last Updated'] || row['lastUpdated'] || new Date().toISOString().split('T')[0]
+        }));
+
+        setUploadedData(mappedData);
+        setIsUsingUploadedData(true);
+        setSelectedProject('all');
+        
+        toast({
+          title: "Excel File Uploaded Successfully",
+          description: `Loaded ${mappedData.length} workflow records from Excel file`,
+        });
+      } catch (error) {
+        console.error('Error parsing Excel file:', error);
+        toast({
+          title: "Upload Failed",
+          description: "Could not parse Excel file. Please check the format.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const clearUploadedData = () => {
+    setUploadedData([]);
+    setIsUsingUploadedData(false);
+    setSelectedProject('all');
+    toast({
+      title: "Data Cleared",
+      description: "Switched back to default workflow data",
+    });
+  };
 
   // Get unique projects for selection
   const projects = useMemo(() => {
-    return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
-  }, [data]);
+    return [...new Set(currentData.map(item => item.directorProject))].filter(Boolean);
+  }, [currentData]);
 
   const projectOptions = useMemo(() => [
     { value: 'all', label: 'All Projects' },
@@ -36,11 +101,11 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
   // Build flowchart data with improved positioning
   const flowchartData = useMemo(() => {
-    console.log('🔄 Building flowchart data...', { selectedProject, dataLength: data.length });
+    console.log('🔄 Building flowchart data...', { selectedProject, dataLength: currentData.length });
     
     let filteredData = selectedProject === 'all' 
-      ? data 
-      : data.filter(item => item.directorProject === selectedProject);
+      ? currentData 
+      : currentData.filter(item => item.directorProject === selectedProject);
 
     if (filteredData.length === 0) {
       return { nodes: [], connections: [] };
@@ -98,7 +163,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     });
 
     return { nodes, connections };
-  }, [data, selectedProject]);
+  }, [currentData, selectedProject]);
 
   const toggleNode = (nodeId: string) => {
     setExpandedNodes(prev => {
@@ -166,6 +231,35 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {/* Excel Upload Section */}
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="excel-upload"
+              />
+              <label
+                htmlFor="excel-upload"
+                className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 cursor-pointer transition-colors text-sm"
+              >
+                <Upload className="w-4 h-4" />
+                Upload Excel
+              </label>
+              {isUsingUploadedData && (
+                <Button
+                  onClick={clearUploadedData}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <FileExcel className="w-4 h-4" />
+                  Clear Upload
+                </Button>
+              )}
+            </div>
+            
             <SearchableSelect
               value={selectedProject}
               onValueChange={setSelectedProject}
@@ -174,7 +268,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               className="w-64"
             />
             <div className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded border">
-              Click nodes to expand workflow
+              {isUsingUploadedData ? 'Using uploaded data' : 'Click nodes to expand workflow'}
             </div>
           </div>
         </div>
@@ -294,10 +388,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             <div className="text-center p-8 bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="text-4xl mb-3 text-gray-400">📊</div>
               <div className="text-lg font-medium text-gray-700 mb-2">
-                {data.length === 0 ? 'No workflow data available' : 'No data for selected project'}
+                {currentData.length === 0 ? 'No workflow data available' : 'No data for selected project'}
               </div>
               <div className="text-gray-500 text-sm">
-                {data.length === 0 ? 'Import your workflow data to get started' : 'Try selecting "All Projects" or a different project'}
+                {currentData.length === 0 ? 'Upload an Excel file or import your workflow data to get started' : 'Try selecting "All Projects" or a different project'}
               </div>
             </div>
           </div>
@@ -322,6 +416,16 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             </div>
           ))}
         </div>
+        {isUsingUploadedData && (
+          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+            <div className="flex items-center gap-2 text-green-800">
+              <FileExcel className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                Currently displaying data from uploaded Excel file ({uploadedData.length} records)
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
