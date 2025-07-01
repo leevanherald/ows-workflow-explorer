@@ -113,85 +113,101 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-subtle flex flex-col">
       <div className="container mx-auto p-6 max-w-7xl flex-1 flex flex-col">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <img 
-              src="/lovable-uploads/07918255-54de-4fea-b309-b3562bb915c4.png" 
-              alt="Barclays Logo" 
-              className="h-12 w-auto"
-            />
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-2">OWS Workflow Explorer</h1>
-              <p className="text-slate-600 text-lg">
-                Visualize and analyze end-to-end alert workflows from Director Projects to Final States
-              </p>
+        {/* Enhanced Header with Gradient */}
+        <div className="mb-8 animate-fade-in">
+          <div className="bg-gradient-hero rounded-2xl p-8 text-white shadow-xl mb-6">
+            <div className="flex items-center gap-6">
+              <div className="bg-white/20 backdrop-blur-lg rounded-xl p-4 border border-white/30">
+                <img 
+                  src="/lovable-uploads/07918255-54de-4fea-b309-b3562bb915c4.png" 
+                  alt="Barclays Logo" 
+                  className="h-12 w-auto"
+                />
+              </div>
+              <div className="flex-1">
+                <h1 className="text-5xl font-bold mb-3 text-gradient bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  OWS Workflow Explorer
+                </h1>
+                <p className="text-white/90 text-xl leading-relaxed">
+                  Visualize and analyze end-to-end alert workflows from Director Projects to Final States
+                </p>
+                <div className="mt-4 flex items-center gap-4 text-white/80">
+                  <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    Real-time monitoring
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                    Interactive visualization
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Controls */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-2">
+        {/* Enhanced Controls with Glass Effect */}
+        <Card className="mb-8 glass animate-slide-up">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
-                  variant={activeView === 'tree' ? 'default' : 'outline'}
+                  variant={activeView === 'tree' ? 'premium' : 'outline'}
                   onClick={() => setActiveView('tree')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 transition-all duration-300"
                 >
                   <TreePine className="w-4 h-4" />
                   Tree View
                 </Button>
                 <Button
-                  variant={activeView === 'flowchart' ? 'default' : 'outline'}
+                  variant={activeView === 'flowchart' ? 'premium' : 'outline'}
                   onClick={() => setActiveView('flowchart')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 transition-all duration-300"
                 >
                   <GitBranch className="w-4 h-4" />
                   Flowchart
                 </Button>
                 <Button
-                  variant={activeView === 'table' ? 'default' : 'outline'}
+                  variant={activeView === 'table' ? 'premium' : 'outline'}
                   onClick={() => setActiveView('table')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 transition-all duration-300"
                 >
                   <Table className="w-4 h-4" />
                   Table View
                 </Button>
                 <Button
-                  variant={activeView === 'matrix' ? 'default' : 'outline'}
+                  variant={activeView === 'matrix' ? 'premium' : 'outline'}
                   onClick={() => setActiveView('matrix')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 transition-all duration-300"
                 >
                   <Grid3X3 className="w-4 h-4" />
                   Matrix View
                 </Button>
                 <Button
-                  variant={activeView === 'heatmap' ? 'default' : 'outline'}
+                  variant={activeView === 'heatmap' ? 'premium' : 'outline'}
                   onClick={() => setActiveView('heatmap')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 transition-all duration-300"
                 >
                   <Flame className="w-4 h-4" />
                   Heatmap
                 </Button>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {activeView === 'flowchart' && (
                   <>
-                    <Button onClick={handleExportFlowchartPDF} variant="outline" size="sm" className="flex items-center gap-2">
+                    <Button onClick={handleExportFlowchartPDF} variant="secondary" size="sm" className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      PDF
+                      Export PDF
                     </Button>
-                    <Button onClick={handleExportFlowchartImage} variant="outline" size="sm" className="flex items-center gap-2">
+                    <Button onClick={handleExportFlowchartImage} variant="secondary" size="sm" className="flex items-center gap-2">
                       <FileImage className="w-4 h-4" />
-                      PNG
+                      Export PNG
                     </Button>
                   </>
                 )}
-                <Button onClick={handleExportData} variant="outline" className="flex items-center gap-2">
+                <Button onClick={handleExportData} variant="success" className="flex items-center gap-2">
                   <Download className="w-4 h-4" />
                   Export Data
                 </Button>
@@ -233,47 +249,53 @@ const Index = () => {
           )}
         </Card>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+        {/* Enhanced Main Content with Animations */}
+        <div className="flex-1 flex flex-col animate-scale-in">
           {activeView === 'flowchart' ? (
-            <div className="flex-1 bg-white rounded-lg shadow-sm p-6">
+            <div className="flex-1 bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-8">
               {renderView()}
             </div>
           ) : (
-            <Card className="flex-1 flex flex-col">
-              <CardContent className="p-6 flex-1">
+            <Card className="flex-1 flex flex-col card-elevated">
+              <CardContent className="p-8 flex-1">
                 {renderView()}
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* Stats Footer */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{filteredData.length}</div>
-              <div className="text-sm text-slate-600">Total Workflows</div>
+        {/* Enhanced Stats Footer with Gradients */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6 animate-fade-in">
+          <Card className="card-interactive group">
+            <CardContent className="p-6 text-center">
+              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">
+                {filteredData.length}
+              </div>
+              <div className="text-sm text-muted-foreground font-medium">Total Workflows</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{uniqueProjects.length}</div>
-              <div className="text-sm text-slate-600">Director Projects</div>
+          <Card className="card-interactive group">
+            <CardContent className="p-6 text-center">
+              <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">
+                {uniqueProjects.length}
+              </div>
+              <div className="text-sm text-muted-foreground font-medium">Director Projects</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">{uniqueStates.length}</div>
-              <div className="text-sm text-slate-600">Unique States</div>
+          <Card className="card-interactive group">
+            <CardContent className="p-6 text-center">
+              <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">
+                {uniqueStates.length}
+              </div>
+              <div className="text-sm text-muted-foreground font-medium">Unique States</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">
+          <Card className="card-interactive group">
+            <CardContent className="p-6 text-center">
+              <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">
                 {[...new Set(mockWorkflowData.map(item => item.workflow))].length}
               </div>
-              <div className="text-sm text-slate-600">Workflow Types</div>
+              <div className="text-sm text-muted-foreground font-medium">Workflow Types</div>
             </CardContent>
           </Card>
         </div>
