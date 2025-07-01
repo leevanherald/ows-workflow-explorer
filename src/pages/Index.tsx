@@ -1,27 +1,32 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, Download, TreePine, GitBranch, Table } from 'lucide-react';
+import { Search, Filter, Download, TreePine, GitBranch, Table, Grid3X3, Flame, FileImage, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TreeView from '@/components/TreeView';
 import FlowchartView from '@/components/FlowchartView';
 import TabularView from '@/components/TabularView';
+import MatrixView from '@/components/MatrixView';
+import HeatmapView from '@/components/HeatmapView';
+import SearchableSelect from '@/components/SearchableSelect';
 import { mockWorkflowData } from '@/data/mockData';
+import { exportDataAsCSV, exportFlowchartAsPDF, exportFlowchartAsImage } from '@/utils/exportUtils';
+import { useToast } from '@/hooks/use-toast';
 
-type ViewType = 'tree' | 'flowchart' | 'table';
+type ViewType = 'tree' | 'flowchart' | 'table' | 'matrix' | 'heatmap';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ViewType>('flowchart');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProject, setFilterProject] = useState('all');
   const [filterState, setFilterState] = useState('all');
+  const { toast } = useToast();
 
   const filteredData = mockWorkflowData.filter(item => {
     const matchesSearch = searchTerm === '' || 
       Object.values(item).some(value => 
-        value.toLowerCase().includes(searchTerm.toLowerCase())
+        value.toString().toLowerCase().includes(searchTerm.toLowerCase())
       );
     const matchesProject = filterProject === 'all' || item.directorProject === filterProject;
     const matchesState = filterState === 'all' || item.state === filterState;
@@ -32,16 +37,78 @@ const Index = () => {
   const uniqueProjects = [...new Set(mockWorkflowData.map(item => item.directorProject))];
   const uniqueStates = [...new Set(mockWorkflowData.map(item => item.state))];
 
+  const projectOptions = [
+    { value: 'all', label: 'All Projects' },
+    ...uniqueProjects.map(project => ({ value: project, label: project }))
+  ];
+
+  const stateOptions = [
+    { value: 'all', label: 'All States' },
+    ...uniqueStates.map(state => ({ value: state, label: state }))
+  ];
+
+  const handleExportData = async () => {
+    try {
+      exportDataAsCSV(filteredData, 'ows-workflow-data');
+      toast({
+        title: "Export Successful",
+        description: "Workflow data has been exported as CSV",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportFlowchartPDF = async () => {
+    try {
+      await exportFlowchartAsPDF('flowchart-container', `ows-flowchart-${filterProject}`);
+      toast({
+        title: "Export Successful",
+        description: "Flowchart has been exported as PDF",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed", 
+        description: "Failed to export flowchart. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportFlowchartImage = async () => {
+    try {
+      await exportFlowchartAsImage('flowchart-container', `ows-flowchart-${filterProject}`);
+      toast({
+        title: "Export Successful",
+        description: "Flowchart has been exported as PNG image",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export flowchart. Please try again.", 
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderView = () => {
     switch (activeView) {
       case 'tree':
         return <TreeView data={filteredData} />;
       case 'flowchart':
-        return <FlowchartView data={filteredData} />;
+        return <div id="flowchart-container"><FlowchartView data={filteredData} /></div>;
       case 'table':
         return <TabularView data={filteredData} />;
+      case 'matrix':
+        return <MatrixView data={filteredData} />;
+      case 'heatmap':
+        return <HeatmapView data={filteredData} />;
       default:
-        return <FlowchartView data={filteredData} />;
+        return <div id="flowchart-container"><FlowchartView data={filteredData} /></div>;
     }
   };
 
@@ -94,11 +161,41 @@ const Index = () => {
                   <Table className="w-4 h-4" />
                   Table View
                 </Button>
+                <Button
+                  variant={activeView === 'matrix' ? 'default' : 'outline'}
+                  onClick={() => setActiveView('matrix')}
+                  className="flex items-center gap-2"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                  Matrix View
+                </Button>
+                <Button
+                  variant={activeView === 'heatmap' ? 'default' : 'outline'}
+                  onClick={() => setActiveView('heatmap')}
+                  className="flex items-center gap-2"
+                >
+                  <Flame className="w-4 h-4" />
+                  Heatmap
+                </Button>
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Export Data
-              </Button>
+              <div className="flex items-center gap-2">
+                {activeView === 'flowchart' && (
+                  <>
+                    <Button onClick={handleExportFlowchartPDF} variant="outline" size="sm" className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      PDF
+                    </Button>
+                    <Button onClick={handleExportFlowchartImage} variant="outline" size="sm" className="flex items-center gap-2">
+                      <FileImage className="w-4 h-4" />
+                      PNG
+                    </Button>
+                  </>
+                )}
+                <Button onClick={handleExportData} variant="outline" className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Export Data
+                </Button>
+              </div>
             </div>
           </CardHeader>
           {(activeView === 'tree' || activeView === 'table') && (
@@ -116,28 +213,20 @@ const Index = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Select value={filterProject} onValueChange={setFilterProject}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Filter by Project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Projects</SelectItem>
-                      {uniqueProjects.map(project => (
-                        <SelectItem key={project} value={project}>{project}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterState} onValueChange={setFilterState}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Filter by State" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All States</SelectItem>
-                      {uniqueStates.map(state => (
-                        <SelectItem key={state} value={state}>{state}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={filterProject}
+                    onValueChange={setFilterProject}
+                    options={projectOptions}
+                    placeholder="Filter by Project"
+                    className="w-48"
+                  />
+                  <SearchableSelect
+                    value={filterState}
+                    onValueChange={setFilterState}
+                    options={stateOptions}
+                    placeholder="Filter by State"
+                    className="w-48"
+                  />
                 </div>
               </div>
             </CardContent>

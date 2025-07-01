@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SearchableSelect from '@/components/SearchableSelect';
 import { WorkflowData } from '@/data/mockData';
 import { ChevronRight, ChevronDown, AlertCircle } from 'lucide-react';
 
@@ -30,6 +29,11 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
   }, [data]);
 
+  const projectOptions = useMemo(() => [
+    { value: 'all', label: 'All Projects' },
+    ...projects.map(project => ({ value: project, label: project }))
+  ], [projects]);
+
   // Build flowchart data with improved positioning
   const flowchartData = useMemo(() => {
     console.log('🔄 Building flowchart data...', { selectedProject, dataLength: data.length });
@@ -48,9 +52,9 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
     // Professional positioning with consistent spacing
     const levelCounts = new Map<number, number>();
-    const levelWidth = 260;
+    const levelWidth = 280;
     const nodeHeight = 100;
-    const verticalSpacing = 120;
+    const verticalSpacing = 140;
 
     filteredData.forEach(item => {
       const hierarchy = [
@@ -71,8 +75,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             ...nodeData,
             count: 0,
             expanded: false,
-            x: nodeData.level * levelWidth + 40,
-            y: currentLevelCount * verticalSpacing + 50
+            x: nodeData.level * levelWidth + 50,
+            y: currentLevelCount * verticalSpacing + 80
           };
 
           nodeMap.set(nodeData.id, node);
@@ -145,8 +149,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   );
 
   // Calculate container dimensions
-  const maxX = visibleNodes.reduce((max, node) => Math.max(max, node.x + 220), 0);
-  const maxY = visibleNodes.reduce((max, node) => Math.max(max, node.y + 100), 0);
+  const maxX = visibleNodes.reduce((max, node) => Math.max(max, node.x + 240), 0);
+  const maxY = visibleNodes.reduce((max, node) => Math.max(max, node.y + 120), 0);
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -162,21 +166,13 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-64 h-10 bg-white border-gray-300">
-                <SelectValue placeholder="Select Project" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-gray-200">
-                <SelectItem value="all" className="text-gray-700">
-                  All Projects
-                </SelectItem>
-                {projects.map(project => (
-                  <SelectItem key={project} value={project} className="text-gray-700">
-                    {project}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={selectedProject}
+              onValueChange={setSelectedProject}
+              options={projectOptions}
+              placeholder="Select Project"
+              className="w-64"
+            />
             <div className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded border">
               Click nodes to expand workflow
             </div>
@@ -190,8 +186,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           <div 
             className="relative p-6"
             style={{ 
-              width: Math.max(maxX + 60, 1000), 
-              height: Math.max(maxY + 60, 500) 
+              width: Math.max(maxX + 60, 1200), 
+              height: Math.max(maxY + 60, 600) 
             }}
           >
             {/* Professional SVG Connections */}
@@ -218,10 +214,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                 const toNode = visibleNodes.find(n => n.id === conn.to);
                 if (!fromNode || !toNode) return null;
 
-                const fromX = fromNode.x + 220;
-                const fromY = fromNode.y + 50;
+                const fromX = fromNode.x + 240;
+                const fromY = fromNode.y + 60;
                 const toX = toNode.x;
-                const toY = toNode.y + 50;
+                const toY = toNode.y + 60;
 
                 return (
                   <line
@@ -254,7 +250,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                   }}
                   onClick={() => hasChildren && toggleNode(node.id)}
                 >
-                  <div className={`${getNodeColor(node.type)} text-white rounded-lg p-4 w-52 h-24 border-2 ${getNodeBorder(node.type)} shadow-sm`}>
+                  <div className={`${getNodeColor(node.type)} text-white rounded-lg p-4 w-60 h-28 border-2 ${getNodeBorder(node.type)} shadow-sm`}>
                     <div className="h-full flex flex-col justify-between">
                       <div className="flex items-start gap-2">
                         {hasChildren && (
