@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import SearchableSelect from '@/components/SearchableSelect';
 import { WorkflowData } from '@/data/mockData';
-import { ChevronRight, ChevronDown, AlertCircle, Upload, FileExcel } from 'lucide-react';
+import { ChevronRight, ChevronDown, AlertCircle, Upload, File } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,17 +46,19 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        // Map Excel data to WorkflowData format
+        // Map Excel data to WorkflowData format with all required properties
         const mappedData: WorkflowData[] = jsonData.map((row: any, index: number) => ({
-          id: index + 1,
           directorProject: row['Director Project'] || row['directorProject'] || 'Unknown Project',
           directorFeedname: row['Director Feed'] || row['directorFeedname'] || 'Unknown Feed',
-          scmSource: row['SCM Source'] || row['scmSource'] || 'Unknown Source',
+          scmFeedname: row['SCM Feed'] || row['scmFeedname'] || 'Unknown SCM Feed',
           matchProcess: row['Match Process'] || row['matchProcess'] || 'Unknown Process',
+          scmSource: row['SCM Source'] || row['scmSource'] || 'Unknown Source',
           workflow: row['Workflow'] || row['workflow'] || 'Unknown Workflow',
           state: row['State'] || row['state'] || 'Unknown State',
-          alertCount: parseInt(row['Alert Count'] || row['alertCount'] || '1'),
-          lastUpdated: row['Last Updated'] || row['lastUpdated'] || new Date().toISOString().split('T')[0]
+          priority: (row['Priority'] || row['priority'] || 'medium').toLowerCase() as 'high' | 'medium' | 'low',
+          validated: Boolean(row['Validated'] || row['validated'] || false),
+          owner: (row['Owner'] || row['owner'] || 'ops').toLowerCase() as 'ops' | 'tech' | 'dm',
+          alertCount: parseInt(row['Alert Count'] || row['alertCount'] || '1')
         }));
 
         setUploadedData(mappedData);
@@ -254,7 +256,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                   size="sm"
                   className="flex items-center gap-2"
                 >
-                  <FileExcel className="w-4 h-4" />
+                  <File className="w-4 h-4" />
                   Clear Upload
                 </Button>
               )}
@@ -419,7 +421,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         {isUsingUploadedData && (
           <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
             <div className="flex items-center gap-2 text-green-800">
-              <FileExcel className="w-4 h-4" />
+              <File className="w-4 h-4" />
               <span className="text-sm font-medium">
                 Currently displaying data from uploaded Excel file ({uploadedData.length} records)
               </span>
