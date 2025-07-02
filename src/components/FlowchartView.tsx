@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -101,7 +102,18 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     ...projects.map(project => ({ value: project, label: project }))
   ], [projects]);
 
-  // Build flowchart data with improved positioning
+  // Check if node should be visible based on parent expansion state
+  const isNodeVisible = (node: FlowNode, allNodes: FlowNode[]): boolean => {
+    if (node.level === 0) return true;
+    if (!node.parentId) return true;
+    
+    const parent = allNodes.find(n => n.id === node.parentId);
+    if (!parent) return true;
+    
+    return expandedNodes.has(node.parentId) && isNodeVisible(parent, allNodes);
+  };
+
+  // Build flowchart data with intelligent space-efficient positioning
   const flowchartData = useMemo(() => {
     console.log('🔄 Building flowchart data...', { selectedProject, dataLength: currentData.length });
     
@@ -118,11 +130,11 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     const nodeMap = new Map<string, FlowNode>();
 
     // Professional positioning with consistent spacing
-    const levelCounts = new Map<number, number>();
     const levelWidth = 280;
-    const nodeHeight = 100;
+    const nodeHeight = 120;
     const verticalSpacing = 140;
 
+    // Build all nodes first
     filteredData.forEach(item => {
       const hierarchy = [
         { id: `project_${item.directorProject}`, label: item.directorProject, type: 'project' as const, level: 0 },
@@ -135,15 +147,12 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
       hierarchy.forEach((nodeData, index) => {
         if (!nodeMap.has(nodeData.id)) {
-          const currentLevelCount = levelCounts.get(nodeData.level) || 0;
-          levelCounts.set(nodeData.level, currentLevelCount + 1);
-
           const node: FlowNode = {
             ...nodeData,
             count: 0,
             expanded: false,
-            x: nodeData.level * levelWidth + 50,
-            y: currentLevelCount * verticalSpacing + 80
+            x: 0, // Will be calculated later
+            y: 0  // Will be calculated later
           };
 
           nodeMap.set(nodeData.id, node);
@@ -164,8 +173,41 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       });
     });
 
-    return { nodes, connections };
-  }, [currentData, selectedProject]);
+    // Calculate positions dynamically based on visibility
+    const calculatePositions = () => {
+      // Group nodes by level
+      const nodesByLevel = new Map<number, FlowNode[]>();
+      nodes.forEach(node => {
+        if (!nodesByLevel.has(node.level)) {
+          nodesByLevel.set(node.level, []);
+        }
+        nodesByLevel.get(node.level)!.push(node);
+      });
+
+      // Position nodes level by level, only considering visible ones
+      for (let level = 0; level <= 5; level++) {
+        const levelNodes = nodesByLevel.get(level) || [];
+        const visibleNodes = levelNodes.filter(node => isNodeVisible(node, nodes));
+        
+        visibleNodes.forEach((node, index) => {
+          node.x = level * levelWidth + 50;
+          node.y = index * verticalSpacing + 80;
+        });
+      }
+    };
+
+    // Initial positioning
+    calculatePositions();
+
+    return { nodes, connections, calculatePositions };
+  }, [currentData, selectedProject, expandedNodes]);
+
+  // Recalculate positions when expanded nodes change
+  useMemo(() => {
+    if (flowchartData.calculatePositions) {
+      flowchartData.calculatePositions();
+    }
+  }, [expandedNodes, flowchartData]);
 
   const toggleNode = (nodeId: string) => {
     setExpandedNodes(prev => {
@@ -203,14 +245,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     return borders[type as keyof typeof borders] || 'border-gray-300';
   };
 
-  const isNodeVisible = (node: FlowNode): boolean => {
-    if (node.level === 0) return true;
-    if (!node.parentId) return true;
-    
-    return expandedNodes.has(node.parentId) && isNodeVisible(flowchartData.nodes.find(n => n.id === node.parentId)!);
-  };
-
-  const visibleNodes = flowchartData.nodes.filter(isNodeVisible);
+  const visibleNodes = flowchartData.nodes.filter(node => isNodeVisible(node, flowchartData.nodes));
   const visibleConnections = flowchartData.connections.filter(conn => 
     visibleNodes.some(n => n.id === conn.from) && visibleNodes.some(n => n.id === conn.to)
   );
