@@ -47,13 +47,17 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
   // Toggle workflow expansion
   const toggleWorkflow = useCallback((workflowId: string) => {
+    console.log('🔄 Toggling workflow:', workflowId);
     setExpandedWorkflows(prev => {
       const newSet = new Set(prev);
       if (newSet.has(workflowId)) {
         newSet.delete(workflowId);
+        console.log('📉 Collapsed workflow:', workflowId);
       } else {
         newSet.add(workflowId);
+        console.log('📈 Expanded workflow:', workflowId);
       }
+      console.log('📊 Current expanded workflows:', Array.from(newSet));
       return newSet;
     });
   }, []);
@@ -76,9 +80,9 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     const nodeMap = new Map<string, NetworkNode>();
     const edgeSet = new Set<string>();
     
-    // Define positioning
-    const columnWidth = 400;
-    const verticalSpacing = 120;
+    // Define positioning with improved spacing
+    const columnWidth = 450;
+    const verticalSpacing = 140;
     const startX = 100;
     const startY = 100;
 
@@ -106,7 +110,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           type: 'project' as const, 
           level: 0,
           value: item.directorProject,
-          isClickable: true
+          isClickable: true,
+          workflowId
         },
         { 
           id: `feed_${item.directorFeedname || 'unknown'}_${workflowId}`, 
@@ -115,7 +120,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           level: 1,
           value: item.directorFeedname,
           isClickable: false,
-          shouldShow: isExpanded
+          shouldShow: isExpanded,
+          workflowId
         },
         { 
           id: `source_${item.scmSource || 'unknown'}_${workflowId}`, 
@@ -124,7 +130,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           level: 2,
           value: item.scmSource,
           isClickable: true,
-          shouldShow: isExpanded
+          shouldShow: isExpanded,
+          workflowId
         },
         { 
           id: `match_${item.matchProcess || 'unknown'}_${workflowId}`, 
@@ -133,7 +140,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           level: 3,
           value: item.matchProcess,
           isClickable: false,
-          shouldShow: isExpanded
+          shouldShow: isExpanded,
+          workflowId
         },
         { 
           id: `workflow_${item.workflow || 'unknown'}_${workflowId}`, 
@@ -142,7 +150,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           level: 4,
           value: item.workflow,
           isClickable: true,
-          shouldShow: isExpanded
+          shouldShow: isExpanded,
+          workflowId
         },
         { 
           id: `state_${item.state || 'unknown'}_${workflowId}`, 
@@ -151,7 +160,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           level: 5,
           value: item.state,
           isClickable: false,
-          shouldShow: isExpanded
+          shouldShow: isExpanded,
+          workflowId
         },
       ].filter(node => node.value && (node.level === 0 || node.shouldShow)); // Only include nodes with valid values and respect expansion state
 
@@ -173,10 +183,13 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               count: 0,
               type: nodeDef.type,
               details: `${nodeDef.type}: ${nodeDef.label}`,
-              workflowId,
-              isExpanded: nodeDef.type === 'project' ? expandedWorkflows.has(workflowId) : false,
+              workflowId: nodeDef.workflowId,
+              isExpanded: nodeDef.type === 'project' ? expandedWorkflows.has(nodeDef.workflowId) : false,
               isClickable: nodeDef.isClickable,
-              onClick: nodeDef.isClickable ? () => toggleWorkflow(workflowId) : undefined,
+              onClick: nodeDef.isClickable ? () => {
+                console.log('🖱️ Node clicked:', nodeDef.id, 'WorkflowId:', nodeDef.workflowId);
+                toggleWorkflow(nodeDef.workflowId);
+              } : undefined,
             },
             sourcePosition: Position.Right,
             targetPosition: Position.Left,
@@ -184,16 +197,16 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               background: getNodeColor(nodeDef.type),
               color: 'white',
               border: '3px solid rgba(255,255,255,0.2)',
-              borderRadius: '16px',
-              padding: '20px 24px',
-              minWidth: '220px',
-              minHeight: '80px',
+              borderRadius: '20px',
+              padding: '24px 32px',
+              minWidth: '280px',
+              minHeight: '100px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-              fontSize: '16px',
-              fontWeight: '600',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+              fontSize: '18px',
+              fontWeight: '700',
               cursor: nodeDef.isClickable ? 'pointer' : 'default',
               transition: 'all 0.3s ease',
             },
@@ -262,6 +275,13 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+  // Update nodes when initialNodes change
+  React.useEffect(() => {
+    console.log('🔄 Updating nodes due to expansion change');
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
+
   const onConnect = useCallback(() => {
     // Prevent manual connections in this read-only flowchart
   }, []);
@@ -278,39 +298,49 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     return colors[type as keyof typeof colors] || '#6b7280';
   }
 
-  // Custom node component
-  const CustomNode = ({ data }: { data: any }) => (
-    <div 
-      className={`flex flex-col items-center justify-center h-full w-full ${
-        data.isClickable ? 'hover:scale-105 active:scale-95' : ''
-      }`}
-      onClick={data.onClick}
-      style={{ transition: 'transform 0.2s ease' }}
-    >
-      <div className="flex items-center justify-center gap-2 mb-2">
-        <div className="font-bold text-lg text-center leading-tight">
-          {data.label && data.label.length > 25 ? `${data.label.substring(0, 25)}...` : data.label}
+  // Custom node component with better click handling
+  const CustomNode = ({ data }: { data: any }) => {
+    const handleClick = useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+      console.log('🖱️ CustomNode clicked:', data.label, 'Clickable:', data.isClickable);
+      if (data.isClickable && data.onClick) {
+        data.onClick();
+      }
+    }, [data]);
+
+    return (
+      <div 
+        className={`flex flex-col items-center justify-center h-full w-full ${
+          data.isClickable ? 'hover:scale-105 active:scale-95 cursor-pointer' : 'cursor-default'
+        }`}
+        onClick={handleClick}
+        style={{ transition: 'transform 0.2s ease' }}
+      >
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="font-bold text-xl text-center leading-tight">
+            {data.label && data.label.length > 25 ? `${data.label.substring(0, 25)}...` : data.label}
+          </div>
+          {data.isClickable && (
+            <div className="flex-shrink-0">
+              {data.isExpanded ? (
+                <ChevronDown className="w-6 h-6 opacity-90" />
+              ) : (
+                <ChevronRight className="w-6 h-6 opacity-90" />
+              )}
+            </div>
+          )}
+        </div>
+        <div className="text-base opacity-90 font-medium">
+          {data.count} alert{data.count !== 1 ? 's' : ''}
         </div>
         {data.isClickable && (
-          <div className="flex-shrink-0">
-            {data.isExpanded ? (
-              <ChevronDown className="w-5 h-5 opacity-80" />
-            ) : (
-              <ChevronRight className="w-5 h-5 opacity-80" />
-            )}
+          <div className="text-sm opacity-70 mt-2">
+            Click to {data.isExpanded ? 'collapse' : 'expand'}
           </div>
         )}
       </div>
-      <div className="text-sm opacity-90 font-medium">
-        {data.count} alert{data.count !== 1 ? 's' : ''}
-      </div>
-      {data.isClickable && (
-        <div className="text-xs opacity-70 mt-1">
-          Click to {data.isExpanded ? 'collapse' : 'expand'}
-        </div>
-      )}
-    </div>
-  );
+    );
+  };
 
   const nodeTypes = {
     default: CustomNode,
@@ -351,8 +381,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* React Flow Canvas */}
-      <div className="flex-1 relative">
+      {/* React Flow Canvas with proper dimensions */}
+      <div className="flex-1 relative" style={{ width: '100%', height: '100%' }}>
         {nodes.length > 0 ? (
           <ReactFlow
             nodes={nodes}
@@ -370,6 +400,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             panOnScroll
             panOnDrag={[1, 2]}
             defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+            style={{ width: '100%', height: '100%' }}
           >
             <Background 
               color="#475569" 
