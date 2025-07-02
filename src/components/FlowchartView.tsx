@@ -17,6 +17,7 @@ import './FlowchartView.css';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorkflowData } from '@/data/mockData';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface FlowchartViewProps {
   data: WorkflowData[];
@@ -28,16 +29,34 @@ interface NetworkNode extends Node {
     count: number;
     type: 'project' | 'feed' | 'source' | 'match' | 'workflow' | 'state';
     details: string;
+    workflowId: string;
+    isExpanded?: boolean;
+    isClickable?: boolean;
+    onClick?: () => void;
   };
 }
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set());
 
   // Get unique projects for selection
   const projects = useMemo(() => {
     return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
   }, [data]);
+
+  // Toggle workflow expansion
+  const toggleWorkflow = useCallback((workflowId: string) => {
+    setExpandedWorkflows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(workflowId)) {
+        newSet.delete(workflowId);
+      } else {
+        newSet.add(workflowId);
+      }
+      return newSet;
+    });
+  }, []);
 
   // Build network data with React Flow format
   const { initialNodes, initialEdges } = useMemo(() => {
@@ -58,20 +77,25 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     const edgeSet = new Set<string>();
     
     // Define positioning
-    const columnWidth = 300;
-    const verticalSpacing = 100;
-    const startX = 50;
-    const startY = 50;
+    const columnWidth = 400;
+    const verticalSpacing = 120;
+    const startX = 100;
+    const startY = 100;
 
     // Process each data item to create nodes
     filteredData.forEach((item, index) => {
+      const workflowId = `${item.directorProject}_${item.directorFeedname}_${item.scmSource}_${item.matchProcess}_${item.workflow}`;
+      const isExpanded = expandedWorkflows.has(workflowId);
+      
       console.log(`🔍 Processing item ${index + 1}/${filteredData.length}:`, {
         project: item.directorProject,
         feed: item.directorFeedname,
         source: item.scmSource,
         match: item.matchProcess,
         workflow: item.workflow,
-        state: item.state
+        state: item.state,
+        workflowId,
+        isExpanded
       });
 
       // Create safe node IDs by filtering out null/undefined values
@@ -81,44 +105,55 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           label: item.directorProject || 'Unknown Project', 
           type: 'project' as const, 
           level: 0,
-          value: item.directorProject
+          value: item.directorProject,
+          isClickable: true
         },
         { 
-          id: `feed_${item.directorFeedname || 'unknown'}`, 
+          id: `feed_${item.directorFeedname || 'unknown'}_${workflowId}`, 
           label: item.directorFeedname || 'Unknown Feed', 
           type: 'feed' as const, 
           level: 1,
-          value: item.directorFeedname
+          value: item.directorFeedname,
+          isClickable: false,
+          shouldShow: isExpanded
         },
         { 
-          id: `source_${item.scmSource || 'unknown'}`, 
+          id: `source_${item.scmSource || 'unknown'}_${workflowId}`, 
           label: item.scmSource || 'Unknown Source', 
           type: 'source' as const, 
           level: 2,
-          value: item.scmSource
+          value: item.scmSource,
+          isClickable: true,
+          shouldShow: isExpanded
         },
         { 
-          id: `match_${item.matchProcess || 'unknown'}`, 
+          id: `match_${item.matchProcess || 'unknown'}_${workflowId}`, 
           label: item.matchProcess || 'Unknown Match', 
           type: 'match' as const, 
           level: 3,
-          value: item.matchProcess
+          value: item.matchProcess,
+          isClickable: false,
+          shouldShow: isExpanded
         },
         { 
-          id: `workflow_${item.workflow || 'unknown'}`, 
+          id: `workflow_${item.workflow || 'unknown'}_${workflowId}`, 
           label: item.workflow || 'Unknown Workflow', 
           type: 'workflow' as const, 
           level: 4,
-          value: item.workflow
+          value: item.workflow,
+          isClickable: true,
+          shouldShow: isExpanded
         },
         { 
-          id: `state_${item.state || 'unknown'}`, 
+          id: `state_${item.state || 'unknown'}_${workflowId}`, 
           label: item.state || 'Unknown State', 
           type: 'state' as const, 
           level: 5,
-          value: item.state
+          value: item.state,
+          isClickable: false,
+          shouldShow: isExpanded
         },
-      ].filter(node => node.value); // Only include nodes with valid values
+      ].filter(node => node.value && (node.level === 0 || node.shouldShow)); // Only include nodes with valid values and respect expansion state
 
       // Create or update nodes
       nodeDefinitions.forEach(nodeDef => {
@@ -138,23 +173,29 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               count: 0,
               type: nodeDef.type,
               details: `${nodeDef.type}: ${nodeDef.label}`,
+              workflowId,
+              isExpanded: nodeDef.type === 'project' ? expandedWorkflows.has(workflowId) : false,
+              isClickable: nodeDef.isClickable,
+              onClick: nodeDef.isClickable ? () => toggleWorkflow(workflowId) : undefined,
             },
             sourcePosition: Position.Right,
             targetPosition: Position.Left,
             style: {
               background: getNodeColor(nodeDef.type),
               color: 'white',
-              border: '2px solid rgba(255,255,255,0.2)',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              minWidth: '180px',
-              minHeight: '60px',
+              border: '3px solid rgba(255,255,255,0.2)',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              minWidth: '220px',
+              minHeight: '80px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-              fontSize: '14px',
-              fontWeight: '500',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: nodeDef.isClickable ? 'pointer' : 'default',
+              transition: 'all 0.3s ease',
             },
           });
         }
@@ -166,7 +207,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         }
       });
 
-      // Create edge connections only between valid nodes
+      // Create edge connections only between valid nodes that should be shown
       if (nodeDefinitions.length >= 2) {
         for (let i = 0; i < nodeDefinitions.length - 1; i++) {
           const sourceId = nodeDefinitions[i].id;
@@ -194,12 +235,12 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         animated: true,
         style: {
           stroke: '#64748b',
-          strokeWidth: 3,
+          strokeWidth: 4,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
+          width: 24,
+          height: 24,
           color: '#64748b',
         },
       };
@@ -216,7 +257,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       initialNodes: finalNodes,
       initialEdges: edges,
     };
-  }, [data, selectedProject]);
+  }, [data, selectedProject, expandedWorkflows, toggleWorkflow]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -239,13 +280,35 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
   // Custom node component
   const CustomNode = ({ data }: { data: any }) => (
-    <div className="flex flex-col items-center justify-center h-full">
-      <div className="font-semibold text-sm mb-1 text-center">
-        {data.label && data.label.length > 20 ? `${data.label.substring(0, 20)}...` : data.label}
+    <div 
+      className={`flex flex-col items-center justify-center h-full w-full ${
+        data.isClickable ? 'hover:scale-105 active:scale-95' : ''
+      }`}
+      onClick={data.onClick}
+      style={{ transition: 'transform 0.2s ease' }}
+    >
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <div className="font-bold text-lg text-center leading-tight">
+          {data.label && data.label.length > 25 ? `${data.label.substring(0, 25)}...` : data.label}
+        </div>
+        {data.isClickable && (
+          <div className="flex-shrink-0">
+            {data.isExpanded ? (
+              <ChevronDown className="w-5 h-5 opacity-80" />
+            ) : (
+              <ChevronRight className="w-5 h-5 opacity-80" />
+            )}
+          </div>
+        )}
       </div>
-      <div className="text-xs opacity-80">
-        {data.count} alerts
+      <div className="text-sm opacity-90 font-medium">
+        {data.count} alert{data.count !== 1 ? 's' : ''}
       </div>
+      {data.isClickable && (
+        <div className="text-xs opacity-70 mt-1">
+          Click to {data.isExpanded ? 'collapse' : 'expand'}
+        </div>
+      )}
     </div>
   );
 
@@ -257,7 +320,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     nodesCount: nodes.length, 
     edgesCount: edges.length,
     selectedProject,
-    dataLength: data.length 
+    dataLength: data.length,
+    expandedWorkflows: Array.from(expandedWorkflows)
   });
 
   return (
@@ -265,7 +329,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       {/* Header */}
       <div className="p-6 bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50">
         <h3 className="text-2xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          Network Workflow Flowchart
+          Interactive Network Workflow Flowchart
         </h3>
         <div className="flex items-center gap-4">
           <Select value={selectedProject} onValueChange={setSelectedProject}>
@@ -281,11 +345,14 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               ))}
             </SelectContent>
           </Select>
+          <div className="text-sm text-slate-300">
+            Click on Director Projects, Sources, or Workflows to expand/collapse
+          </div>
         </div>
       </div>
 
       {/* React Flow Canvas */}
-      <div className="relative" style={{width:1000,height:1000}}>
+      <div className="flex-1 relative">
         {nodes.length > 0 ? (
           <ReactFlow
             nodes={nodes}
@@ -302,12 +369,12 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             className="react-flow-dark-theme"
             panOnScroll
             panOnDrag={[1, 2]}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
           >
             <Background 
               color="#475569" 
-              gap={20} 
-              size={1}
+              gap={24} 
+              size={2}
               style={{ opacity: 0.3 }}
             />
             <Controls 
@@ -333,19 +400,21 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         <h4 className="font-semibold text-white mb-4">Legend</h4>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
-            { type: 'project', label: 'Director Projects' },
-            { type: 'feed', label: 'Feed Names' },
-            { type: 'source', label: 'Sources' },
-            { type: 'match', label: 'Match Process' },
-            { type: 'workflow', label: 'Workflows' },
-            { type: 'state', label: 'End States' },
-          ].map(({ type, label }) => (
+            { type: 'project', label: 'Director Projects', clickable: true },
+            { type: 'feed', label: 'Feed Names', clickable: false },
+            { type: 'source', label: 'Sources', clickable: true },
+            { type: 'match', label: 'Match Process', clickable: false },
+            { type: 'workflow', label: 'Workflows', clickable: true },
+            { type: 'state', label: 'End States', clickable: false },
+          ].map(({ type, label, clickable }) => (
             <div key={type} className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/30 backdrop-blur-sm">
               <div 
                 className="w-4 h-4 rounded"
                 style={{ background: getNodeColor(type) }}
               ></div>
-              <span className="text-sm text-slate-300 font-medium">{label}</span>
+              <span className="text-sm text-slate-300 font-medium">
+                {label} {clickable && <span className="text-xs opacity-70">(clickable)</span>}
+              </span>
             </div>
           ))}
         </div>
