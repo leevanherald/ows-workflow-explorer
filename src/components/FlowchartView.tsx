@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,6 @@ interface FlowNode {
   expanded: boolean;
   x: number;
   y: number;
-  children: string[];
 }
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
@@ -113,7 +113,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     return expandedNodes.has(node.parentId) && isNodeVisible(parent, allNodes);
   };
 
-  // Build flowchart data with organic, graph-like positioning
+  // Build flowchart data with intelligent space-efficient positioning
   const flowchartData = useMemo(() => {
     console.log('🔄 Building flowchart data...', { selectedProject, dataLength: currentData.length });
     
@@ -128,6 +128,11 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     const nodes: FlowNode[] = [];
     const connections: { from: string; to: string }[] = [];
     const nodeMap = new Map<string, FlowNode>();
+
+    // Professional positioning with consistent spacing
+    const levelWidth = 280;
+    const nodeHeight = 120;
+    const verticalSpacing = 140;
 
     // Build all nodes first
     filteredData.forEach(item => {
@@ -146,9 +151,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             ...nodeData,
             count: 0,
             expanded: false,
-            x: 0,
-            y: 0,
-            children: []
+            x: 0, // Will be calculated later
+            y: 0  // Will be calculated later
           };
 
           nodeMap.set(nodeData.id, node);
@@ -160,12 +164,6 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               from: nodeData.parentId,
               to: nodeData.id
             });
-            
-            // Add to parent's children list
-            const parent = nodeMap.get(nodeData.parentId);
-            if (parent && !parent.children.includes(nodeData.id)) {
-              parent.children.push(nodeData.id);
-            }
           }
         }
 
@@ -175,62 +173,27 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       });
     });
 
-    // Organic positioning algorithm
+    // Calculate positions dynamically based on visibility
     const calculatePositions = () => {
-      const positioned = new Set<string>();
-      const nodeWidth = 260;
-      const nodeHeight = 120;
-      const minSpacing = { x: 300, y: 150 };
-      const levelBaseSpacing = { x: 350, y: 200 };
-      
-      // Position root nodes first
-      const rootNodes = nodes.filter(n => n.level === 0);
-      rootNodes.forEach((node, index) => {
-        node.x = 100;
-        node.y = index * levelBaseSpacing.y + 100;
-        positioned.add(node.id);
+      // Group nodes by level
+      const nodesByLevel = new Map<number, FlowNode[]>();
+      nodes.forEach(node => {
+        if (!nodesByLevel.has(node.level)) {
+          nodesByLevel.set(node.level, []);
+        }
+        nodesByLevel.get(node.level)!.push(node);
       });
 
-      // Position children in a more organic way
-      const positionChildren = (parentNode: FlowNode, depth = 0) => {
-        if (!expandedNodes.has(parentNode.id)) return;
+      // Position nodes level by level, only considering visible ones
+      for (let level = 0; level <= 5; level++) {
+        const levelNodes = nodesByLevel.get(level) || [];
+        const visibleNodes = levelNodes.filter(node => isNodeVisible(node, nodes));
         
-        const children = nodes.filter(n => n.parentId === parentNode.id);
-        if (children.length === 0) return;
-
-        // Calculate base position for children
-        const baseX = parentNode.x + levelBaseSpacing.x;
-        const totalChildrenHeight = children.length * nodeHeight + (children.length - 1) * minSpacing.y;
-        const startY = parentNode.y - totalChildrenHeight / 2 + nodeHeight / 2;
-
-        children.forEach((child, index) => {
-          if (positioned.has(child.id)) return;
-          
-          // Add some organic variation to prevent perfect alignment
-          const variation = Math.sin(index * 0.5) * 30;
-          child.x = baseX + variation;
-          child.y = startY + index * (nodeHeight + minSpacing.y);
-          
-          // Ensure nodes don't overlap with others at the same level
-          const sameLevel = nodes.filter(n => n.level === child.level && positioned.has(n.id));
-          sameLevel.forEach(existing => {
-            const distance = Math.sqrt(Math.pow(child.x - existing.x, 2) + Math.pow(child.y - existing.y, 2));
-            if (distance < minSpacing.x) {
-              child.y += minSpacing.y;
-            }
-          });
-          
-          positioned.add(child.id);
-          
-          // Recursively position grandchildren
-          positionChildren(child, depth + 1);
+        visibleNodes.forEach((node, index) => {
+          node.x = level * levelWidth + 50;
+          node.y = index * verticalSpacing + 80;
         });
-      };
-
-      // Position all children recursively
-      rootNodes.forEach(rootNode => {
-        positionChildren(rootNode);
-      });
+      }
     };
 
     // Initial positioning
@@ -287,9 +250,9 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     visibleNodes.some(n => n.id === conn.from) && visibleNodes.some(n => n.id === conn.to)
   );
 
-  // Calculate container dimensions with more generous padding for organic layout
-  const maxX = visibleNodes.reduce((max, node) => Math.max(max, node.x + 300), 1000);
-  const maxY = visibleNodes.reduce((max, node) => Math.max(max, node.y + 150), 800);
+  // Calculate container dimensions
+  const maxX = visibleNodes.reduce((max, node) => Math.max(max, node.x + 240), 0);
+  const maxY = visibleNodes.reduce((max, node) => Math.max(max, node.y + 120), 0);
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -354,11 +317,11 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           <div 
             className="relative p-6"
             style={{ 
-              width: Math.max(maxX + 100, 1400), 
-              height: Math.max(maxY + 100, 800) 
+              width: Math.max(maxX + 60, 1200), 
+              height: Math.max(maxY + 60, 600) 
             }}
           >
-            {/* Organic SVG Connections */}
+            {/* Professional SVG Connections */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
               <defs>
                 <marker
@@ -382,31 +345,29 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                 const toNode = visibleNodes.find(n => n.id === conn.to);
                 if (!fromNode || !toNode) return null;
 
-                const fromX = fromNode.x + 260;
+                const fromX = fromNode.x + 240;
                 const fromY = fromNode.y + 60;
                 const toX = toNode.x;
                 const toY = toNode.y + 60;
 
-                // Create curved connections for more organic feel
-                const midX = (fromX + toX) / 2;
-                const curveOffset = Math.abs(toY - fromY) * 0.3;
-
                 return (
-                  <path
+                  <line
                     key={`${conn.from}-${conn.to}-${index}`}
-                    d={`M ${fromX} ${fromY} Q ${midX + curveOffset} ${fromY} ${midX} ${(fromY + toY) / 2} Q ${midX - curveOffset} ${toY} ${toX} ${toY}`}
+                    x1={fromX}
+                    y1={fromY}
+                    x2={toX}
+                    y2={toY}
                     stroke="#6b7280"
                     strokeWidth="2"
-                    fill="none"
                     markerEnd="url(#arrowhead)"
                   />
                 );
               })}
             </svg>
 
-            {/* Organic Positioned Nodes */}
+            {/* Professional Nodes */}
             {visibleNodes.map(node => {
-              const hasChildren = node.children.length > 0;
+              const hasChildren = flowchartData.connections.some(conn => conn.from === node.id);
               const isExpanded = expandedNodes.has(node.id);
 
               return (
