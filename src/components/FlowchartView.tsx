@@ -38,6 +38,7 @@ interface NetworkNode extends Node {
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set());
 
   // Get unique projects for selection
@@ -45,19 +46,34 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
   }, [data]);
 
+  // Toggle project expansion
+  const toggleProject = useCallback((projectName: string) => {
+    console.log('🔄 Toggling project:', projectName);
+    setExpandedProjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectName)) {
+        newSet.delete(projectName);
+        console.log('📉 Collapsed project:', projectName);
+      } else {
+        newSet.add(projectName);
+        console.log('📈 Expanded project:', projectName);
+      }
+      return newSet;
+    });
+  }, []);
+
   // Toggle workflow expansion
-  const toggleWorkflow = useCallback((workflowId: string) => {
-    console.log('🔄 Toggling workflow:', workflowId);
+  const toggleWorkflow = useCallback((workflowName: string) => {
+    console.log('🔄 Toggling workflow:', workflowName);
     setExpandedWorkflows(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(workflowId)) {
-        newSet.delete(workflowId);
-        console.log('📉 Collapsed workflow:', workflowId);
+      if (newSet.has(workflowName)) {
+        newSet.delete(workflowName);
+        console.log('📉 Collapsed workflow:', workflowName);
       } else {
-        newSet.add(workflowId);
-        console.log('📈 Expanded workflow:', workflowId);
+        newSet.add(workflowName);
+        console.log('📈 Expanded workflow:', workflowName);
       }
-      console.log('📊 Current expanded workflows:', Array.from(newSet));
       return newSet;
     });
   }, []);
@@ -70,7 +86,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       ? data 
       : data.filter(item => item.directorProject === selectedProject);
 
-    console.log('📊 Filtered data:', { filteredLength: filteredData.length, sampleItem: filteredData[0] });
+    console.log('📊 Filtered data:', { filteredLength: filteredData.length });
 
     if (filteredData.length === 0) {
       console.log('❌ No data to display');
@@ -78,199 +94,364 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     }
 
     const nodeMap = new Map<string, NetworkNode>();
-    const edgeSet = new Set<string>();
+    const edgeArray: Edge[] = [];
     
-    // Define positioning with improved spacing
-    const columnWidth = 450;
-    const verticalSpacing = 140;
-    const startX = 100;
-    const startY = 100;
-
-    // Process each data item to create nodes
-    filteredData.forEach((item, index) => {
-      const workflowId = `${item.directorProject}_${item.directorFeedname}_${item.scmSource}_${item.matchProcess}_${item.workflow}`;
-      const isExpanded = expandedWorkflows.has(workflowId);
+    // Group data by project and workflow
+    const projectGroups = new Map<string, WorkflowData[]>();
+    const workflowGroups = new Map<string, WorkflowData[]>();
+    
+    filteredData.forEach(item => {
+      const projectKey = item.directorProject;
+      const workflowKey = `${item.directorProject}_${item.workflow}`;
       
-      console.log(`🔍 Processing item ${index + 1}/${filteredData.length}:`, {
-        project: item.directorProject,
-        feed: item.directorFeedname,
-        source: item.scmSource,
-        match: item.matchProcess,
-        workflow: item.workflow,
-        state: item.state,
-        workflowId,
-        isExpanded
+      if (!projectGroups.has(projectKey)) {
+        projectGroups.set(projectKey, []);
+      }
+      projectGroups.get(projectKey)!.push(item);
+      
+      if (!workflowGroups.has(workflowKey)) {
+        workflowGroups.set(workflowKey, []);
+      }
+      workflowGroups.get(workflowKey)!.push(item);
+    });
+
+    let currentY = 100;
+    const verticalSpacing = 200;
+    const horizontalSpacing = 400;
+
+    // Create project nodes
+    Array.from(projectGroups.entries()).forEach(([projectName, projectData], projectIndex) => {
+      const projectId = `project_${projectName}`;
+      const isProjectExpanded = expandedProjects.has(projectName);
+      const totalAlerts = projectData.reduce((sum, item) => sum + (item.alertCount || 1), 0);
+
+      // Project node
+      nodeMap.set(projectId, {
+        id: projectId,
+        type: 'default',
+        position: { x: 100, y: currentY },
+        data: {
+          label: projectName,
+          count: totalAlerts,
+          type: 'project',
+          details: `Project: ${projectName}`,
+          workflowId: projectName,
+          isExpanded: isProjectExpanded,
+          isClickable: true,
+          onClick: () => toggleProject(projectName),
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        style: {
+          background: getNodeColor('project'),
+          color: 'white',
+          border: '3px solid rgba(255,255,255,0.2)',
+          borderRadius: '20px',
+          padding: '24px 32px',
+          minWidth: '280px',
+          minHeight: '100px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+          fontSize: '18px',
+          fontWeight: '700',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+        },
       });
 
-      // Create safe node IDs by filtering out null/undefined values
-      const nodeDefinitions = [
-        { 
-          id: `project_${item.directorProject || 'unknown'}`, 
-          label: item.directorProject || 'Unknown Project', 
-          type: 'project' as const, 
-          level: 0,
-          value: item.directorProject,
-          isClickable: true,
-          workflowId
-        },
-        { 
-          id: `feed_${item.directorFeedname || 'unknown'}_${workflowId}`, 
-          label: item.directorFeedname || 'Unknown Feed', 
-          type: 'feed' as const, 
-          level: 1,
-          value: item.directorFeedname,
-          isClickable: false,
-          shouldShow: isExpanded,
-          workflowId
-        },
-        { 
-          id: `source_${item.scmSource || 'unknown'}_${workflowId}`, 
-          label: item.scmSource || 'Unknown Source', 
-          type: 'source' as const, 
-          level: 2,
-          value: item.scmSource,
-          isClickable: true,
-          shouldShow: isExpanded,
-          workflowId
-        },
-        { 
-          id: `match_${item.matchProcess || 'unknown'}_${workflowId}`, 
-          label: item.matchProcess || 'Unknown Match', 
-          type: 'match' as const, 
-          level: 3,
-          value: item.matchProcess,
-          isClickable: false,
-          shouldShow: isExpanded,
-          workflowId
-        },
-        { 
-          id: `workflow_${item.workflow || 'unknown'}_${workflowId}`, 
-          label: item.workflow || 'Unknown Workflow', 
-          type: 'workflow' as const, 
-          level: 4,
-          value: item.workflow,
-          isClickable: true,
-          shouldShow: isExpanded,
-          workflowId
-        },
-        { 
-          id: `state_${item.state || 'unknown'}_${workflowId}`, 
-          label: item.state || 'Unknown State', 
-          type: 'state' as const, 
-          level: 5,
-          value: item.state,
-          isClickable: false,
-          shouldShow: isExpanded,
-          workflowId
-        },
-      ].filter(node => node.value && (node.level === 0 || node.shouldShow)); // Only include nodes with valid values and respect expansion state
+      if (isProjectExpanded) {
+        let feedY = currentY;
+        const uniqueFeeds = [...new Set(projectData.map(item => item.directorFeedname))];
+        
+        // Create feed nodes
+        uniqueFeeds.forEach((feedName, feedIndex) => {
+          const feedId = `feed_${feedName}_${projectName}`;
+          const feedData = projectData.filter(item => item.directorFeedname === feedName);
+          const feedAlerts = feedData.reduce((sum, item) => sum + (item.alertCount || 1), 0);
 
-      // Create or update nodes
-      nodeDefinitions.forEach(nodeDef => {
-        if (!nodeMap.has(nodeDef.id)) {
-          const x = startX + (nodeDef.level * columnWidth);
-          const existingNodesAtLevel = Array.from(nodeMap.values()).filter(n => 
-            n.position.x === x
-          ).length;
-          const y = startY + (existingNodesAtLevel * verticalSpacing);
-
-          nodeMap.set(nodeDef.id, {
-            id: nodeDef.id,
+          nodeMap.set(feedId, {
+            id: feedId,
             type: 'default',
-            position: { x, y },
+            position: { x: 600, y: feedY },
             data: {
-              label: nodeDef.label,
-              count: 0,
-              type: nodeDef.type,
-              details: `${nodeDef.type}: ${nodeDef.label}`,
-              workflowId: nodeDef.workflowId,
-              isExpanded: nodeDef.type === 'project' ? expandedWorkflows.has(nodeDef.workflowId) : false,
-              isClickable: nodeDef.isClickable,
-              onClick: nodeDef.isClickable ? () => {
-                console.log('🖱️ Node clicked:', nodeDef.id, 'WorkflowId:', nodeDef.workflowId);
-                toggleWorkflow(nodeDef.workflowId);
-              } : undefined,
+              label: feedName,
+              count: feedAlerts,
+              type: 'feed',
+              details: `Feed: ${feedName}`,
+              workflowId: `${projectName}_${feedName}`,
+              isClickable: false,
             },
             sourcePosition: Position.Right,
             targetPosition: Position.Left,
             style: {
-              background: getNodeColor(nodeDef.type),
+              background: getNodeColor('feed'),
               color: 'white',
               border: '3px solid rgba(255,255,255,0.2)',
               borderRadius: '20px',
-              padding: '24px 32px',
-              minWidth: '280px',
-              minHeight: '100px',
+              padding: '20px 28px',
+              minWidth: '240px',
+              minHeight: '80px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
-              fontSize: '18px',
-              fontWeight: '700',
-              cursor: nodeDef.isClickable ? 'pointer' : 'default',
-              transition: 'all 0.3s ease',
+              boxShadow: '0 12px 36px rgba(0,0,0,0.4)',
+              fontSize: '16px',
+              fontWeight: '600',
             },
           });
-        }
-        
-        // Update count
-        const existingNode = nodeMap.get(nodeDef.id);
-        if (existingNode) {
-          existingNode.data.count += item.alertCount || 1;
-        }
-      });
 
-      // Create edge connections only between valid nodes that should be shown
-      if (nodeDefinitions.length >= 2) {
-        for (let i = 0; i < nodeDefinitions.length - 1; i++) {
-          const sourceId = nodeDefinitions[i].id;
-          const targetId = nodeDefinitions[i + 1].id;
-          const edgeId = `${sourceId}->${targetId}`;
-          
-          if (nodeMap.has(sourceId) && nodeMap.has(targetId) && !edgeSet.has(edgeId)) {
-            edgeSet.add(edgeId);
-          }
-        }
+          // Create edge from project to feed
+          edgeArray.push({
+            id: `${projectId}-${feedId}`,
+            source: projectId,
+            target: feedId,
+            type: 'smoothstep',
+            animated: true,
+            style: { stroke: '#64748b', strokeWidth: 4 },
+            markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: '#64748b' },
+          });
+
+          let sourceY = feedY;
+          const uniqueSources = [...new Set(feedData.map(item => item.scmSource))];
+
+          // Create source nodes
+          uniqueSources.forEach((sourceName, sourceIndex) => {
+            const sourceId = `source_${sourceName}_${projectName}_${feedName}`;
+            const sourceData = feedData.filter(item => item.scmSource === sourceName);
+            const sourceAlerts = sourceData.reduce((sum, item) => sum + (item.alertCount || 1), 0);
+
+            nodeMap.set(sourceId, {
+              id: sourceId,
+              type: 'default',
+              position: { x: 1100, y: sourceY },
+              data: {
+                label: sourceName,
+                count: sourceAlerts,
+                type: 'source',
+                details: `Source: ${sourceName}`,
+                workflowId: `${projectName}_${feedName}_${sourceName}`,
+                isClickable: true,
+                onClick: () => console.log('Source clicked:', sourceName),
+              },
+              sourcePosition: Position.Right,
+              targetPosition: Position.Left,
+              style: {
+                background: getNodeColor('source'),
+                color: 'white',
+                border: '3px solid rgba(255,255,255,0.2)',
+                borderRadius: '20px',
+                padding: '20px 28px',
+                minWidth: '240px',
+                minHeight: '80px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 12px 36px rgba(0,0,0,0.4)',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              },
+            });
+
+            // Create edge from feed to source
+            edgeArray.push({
+              id: `${feedId}-${sourceId}`,
+              source: feedId,
+              target: sourceId,
+              type: 'smoothstep',
+              animated: true,
+              style: { stroke: '#64748b', strokeWidth: 4 },
+              markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: '#64748b' },
+            });
+
+            let matchY = sourceY;
+            const uniqueMatches = [...new Set(sourceData.map(item => item.matchProcess))];
+
+            // Create match process nodes
+            uniqueMatches.forEach((matchName, matchIndex) => {
+              const matchId = `match_${matchName}_${projectName}_${feedName}_${sourceName}`;
+              const matchData = sourceData.filter(item => item.matchProcess === matchName);
+              const matchAlerts = matchData.reduce((sum, item) => sum + (item.alertCount || 1), 0);
+
+              nodeMap.set(matchId, {
+                id: matchId,
+                type: 'default',
+                position: { x: 1600, y: matchY },
+                data: {
+                  label: matchName,
+                  count: matchAlerts,
+                  type: 'match',
+                  details: `Match: ${matchName}`,
+                  workflowId: `${projectName}_${feedName}_${sourceName}_${matchName}`,
+                  isClickable: false,
+                },
+                sourcePosition: Position.Right,
+                targetPosition: Position.Left,
+                style: {
+                  background: getNodeColor('match'),
+                  color: 'white',
+                  border: '3px solid rgba(255,255,255,0.2)',
+                  borderRadius: '20px',
+                  padding: '20px 28px',
+                  minWidth: '240px',
+                  minHeight: '80px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 12px 36px rgba(0,0,0,0.4)',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                },
+              });
+
+              // Create edge from source to match
+              edgeArray.push({
+                id: `${sourceId}-${matchId}`,
+                source: sourceId,
+                target: matchId,
+                type: 'smoothstep',
+                animated: true,
+                style: { stroke: '#64748b', strokeWidth: 4 },
+                markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: '#64748b' },
+              });
+
+              let workflowY = matchY;
+              const uniqueWorkflows = [...new Set(matchData.map(item => item.workflow))];
+
+              // Create workflow nodes
+              uniqueWorkflows.forEach((workflowName, workflowIndex) => {
+                const workflowId = `workflow_${workflowName}_${projectName}_${feedName}_${sourceName}_${matchName}`;
+                const workflowData = matchData.filter(item => item.workflow === workflowName);
+                const workflowAlerts = workflowData.reduce((sum, item) => sum + (item.alertCount || 1), 0);
+                const isWorkflowExpanded = expandedWorkflows.has(workflowName);
+
+                nodeMap.set(workflowId, {
+                  id: workflowId,
+                  type: 'default',
+                  position: { x: 2100, y: workflowY },
+                  data: {
+                    label: workflowName,
+                    count: workflowAlerts,
+                    type: 'workflow',
+                    details: `Workflow: ${workflowName}`,
+                    workflowId: workflowName,
+                    isExpanded: isWorkflowExpanded,
+                    isClickable: true,
+                    onClick: () => toggleWorkflow(workflowName),
+                  },
+                  sourcePosition: Position.Right,
+                  targetPosition: Position.Left,
+                  style: {
+                    background: getNodeColor('workflow'),
+                    color: 'white',
+                    border: '3px solid rgba(255,255,255,0.2)',
+                    borderRadius: '20px',
+                    padding: '20px 28px',
+                    minWidth: '240px',
+                    minHeight: '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 12px 36px rgba(0,0,0,0.4)',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  },
+                });
+
+                // Create edge from match to workflow
+                edgeArray.push({
+                  id: `${matchId}-${workflowId}`,
+                  source: matchId,
+                  target: workflowId,
+                  type: 'smoothstep',
+                  animated: true,
+                  style: { stroke: '#64748b', strokeWidth: 4 },
+                  markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: '#64748b' },
+                });
+
+                if (isWorkflowExpanded) {
+                  let stateY = workflowY;
+                  const uniqueStates = [...new Set(workflowData.map(item => item.state))];
+
+                  // Create state nodes
+                  uniqueStates.forEach((stateName, stateIndex) => {
+                    const stateId = `state_${stateName}_${workflowName}_${projectName}`;
+                    const stateData = workflowData.filter(item => item.state === stateName);
+                    const stateAlerts = stateData.reduce((sum, item) => sum + (item.alertCount || 1), 0);
+
+                    nodeMap.set(stateId, {
+                      id: stateId,
+                      type: 'default',
+                      position: { x: 2600, y: stateY },
+                      data: {
+                        label: stateName,
+                        count: stateAlerts,
+                        type: 'state',
+                        details: `State: ${stateName}`,
+                        workflowId: `${workflowName}_${stateName}`,
+                        isClickable: false,
+                      },
+                      sourcePosition: Position.Right,
+                      targetPosition: Position.Left,
+                      style: {
+                        background: getNodeColor('state'),
+                        color: 'white',
+                        border: '3px solid rgba(255,255,255,0.2)',
+                        borderRadius: '20px',
+                        padding: '20px 28px',
+                        minWidth: '240px',
+                        minHeight: '80px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 12px 36px rgba(0,0,0,0.4)',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                      },
+                    });
+
+                    // Create edge from workflow to state
+                    edgeArray.push({
+                      id: `${workflowId}-${stateId}`,
+                      source: workflowId,
+                      target: stateId,
+                      type: 'smoothstep',
+                      animated: true,
+                      style: { stroke: '#64748b', strokeWidth: 4 },
+                      markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: '#64748b' },
+                    });
+
+                    stateY += verticalSpacing / 2;
+                  });
+                }
+
+                workflowY += verticalSpacing;
+              });
+
+              matchY += verticalSpacing;
+            });
+
+            sourceY += verticalSpacing;
+          });
+
+          feedY += verticalSpacing;
+        });
       }
-    });
 
-    console.log('✅ Created nodes:', nodeMap.size);
-    console.log('✅ Created edge connections:', edgeSet.size);
-
-    // Create edges array
-    const edges: Edge[] = Array.from(edgeSet).map((edgeId, index) => {
-      const [sourceId, targetId] = edgeId.split('->');
-      return {
-        id: `edge-${index}`,
-        source: sourceId,
-        target: targetId,
-        type: 'smoothstep',
-        animated: true,
-        style: {
-          stroke: '#64748b',
-          strokeWidth: 4,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 24,
-          height: 24,
-          color: '#64748b',
-        },
-      };
+      currentY += verticalSpacing * 3;
     });
 
     const finalNodes = Array.from(nodeMap.values());
-    console.log('🎯 Final result:', { 
-      nodes: finalNodes.length, 
-      edges: edges.length,
-      nodesSample: finalNodes.slice(0, 3).map(n => ({ id: n.id, label: n.data.label }))
-    });
+    console.log('🎯 Final result:', { nodes: finalNodes.length, edges: edgeArray.length });
 
     return {
       initialNodes: finalNodes,
-      initialEdges: edges,
+      initialEdges: edgeArray,
     };
-  }, [data, selectedProject, expandedWorkflows, toggleWorkflow]);
+  }, [data, selectedProject, expandedProjects, expandedWorkflows, toggleProject, toggleWorkflow]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -351,6 +532,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     edgesCount: edges.length,
     selectedProject,
     dataLength: data.length,
+    expandedProjects: Array.from(expandedProjects),
     expandedWorkflows: Array.from(expandedWorkflows)
   });
 
@@ -381,8 +563,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* React Flow Canvas with proper dimensions */}
-      <div className="flex-1 relative" style={{ width: '100%', height: '100%' }}>
+      {/* React Flow Canvas with fixed dimensions */}
+      <div className="relative" style={{ width: '100%', height: '800px' }}>
         {nodes.length > 0 ? (
           <ReactFlow
             nodes={nodes}
