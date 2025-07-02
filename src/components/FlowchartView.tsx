@@ -285,7 +285,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       </div>
 
       {/* React Flow Canvas */}
-      <div className="flex-1 relative">
+      <div className="relative" style={{width:1000,height:1000}}>
         {nodes.length > 0 ? (
           <ReactFlow
             nodes={nodes}
