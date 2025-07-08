@@ -1,10 +1,14 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, Download, TreePine, GitBranch, Table } from 'lucide-react';
+import { Search, Filter, Download, TreePine, GitBranch, Table, Calendar as CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import TreeView from '@/components/TreeView';
 import FlowchartView from '@/components/FlowchartView';
 import TabularView from '@/components/TabularView';
@@ -17,6 +21,43 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProject, setFilterProject] = useState('all');
   const [filterState, setFilterState] = useState('all');
+  const [selectedDate, setSelectedDate] = useState<Date>();
+
+  const fetchWeeklyData = async (date: Date) => {
+    try {
+      // Calculate start of week (Monday)
+      const startOfWeek = new Date(date);
+      const day = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      
+      const weekNumber = Math.ceil(date.getDate() / 7);
+      console.log(`Fetching data for week starting: ${format(startOfWeek, 'yyyy-MM-dd')}`);
+      
+      // API call - replace with your actual endpoint
+      const response = await fetch(`/api/workflows/week/${format(startOfWeek, 'yyyy-MM-dd')}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Weekly data received:', data);
+        // Update your data state here
+      }
+    } catch (error) {
+      console.error('Error fetching weekly data:', error);
+    }
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date) {
+      fetchWeeklyData(date);
+    }
+  };
 
   const filteredData = mockWorkflowData.filter(item => {
     const matchesSearch = searchTerm === '' || 
@@ -95,10 +136,35 @@ const Index = () => {
                   Table View
                 </Button>
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Export Data
-              </Button>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a week</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Export Data
+                </Button>
+              </div>
             </div>
           </CardHeader>
           {(activeView === 'tree' || activeView === 'table') && (
