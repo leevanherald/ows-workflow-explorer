@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Search, Filter, Download, TreePine, GitBranch, Table, Calendar as CalendarIcon } from 'lucide-react';
+import { Search, Filter, Download, TreePine, GitBranch, Table, Calendar as CalendarIcon, Network } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +11,10 @@ import { cn } from '@/lib/utils';
 import TreeView from '@/components/TreeView';
 import FlowchartView from '@/components/FlowchartView';
 import TabularView from '@/components/TabularView';
+import SankeyView from '@/components/SankeyView';
 import { mockWorkflowData } from '@/data/mockData';
 
-type ViewType = 'tree' | 'flowchart' | 'table';
+type ViewType = 'tree' | 'flowchart' | 'table' | 'sankey';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ViewType>('flowchart');
@@ -81,6 +81,8 @@ const Index = () => {
         return <FlowchartView data={filteredData} />;
       case 'table':
         return <TabularView data={filteredData} />;
+      case 'sankey':
+        return <SankeyView data={filteredData} />;
       default:
         return <FlowchartView data={filteredData} />;
     }
@@ -126,6 +128,14 @@ const Index = () => {
                 >
                   <GitBranch className="w-4 h-4" />
                   Flowchart
+                </Button>
+                <Button
+                  variant={activeView === 'sankey' ? 'default' : 'outline'}
+                  onClick={() => setActiveView('sankey')}
+                  className="flex items-center gap-2"
+                >
+                  <Network className="w-4 h-4" />
+                  Sankey Flow
                 </Button>
                 <Button
                   variant={activeView === 'table' ? 'default' : 'outline'}
