@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { WorkflowData } from '@/data/mockData';
 
 interface SankeyViewProps {
@@ -8,29 +9,57 @@ interface SankeyViewProps {
 }
 
 const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
-  const [selectedFlow, setSelectedFlow] = useState<string | null>(null);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [selectedFilter, setSelectedFilter] = useState<{
+    type: string;
+    value: string;
+  } | null>(null);
 
-  const toggleNodeExpansion = (nodeId: string, nodeType: string) => {
-    const newExpanded = new Set(expandedNodes);
-    if (newExpanded.has(nodeId)) {
-      newExpanded.delete(nodeId);
-      setSelectedFlow(null);
+  const handleNodeClick = (nodeValue: string, nodeType: string) => {
+    if (selectedFilter?.type === nodeType && selectedFilter?.value === nodeValue) {
+      // If clicking the same node, clear the filter
+      setSelectedFilter(null);
     } else {
-      newExpanded.clear(); // Only one expansion at a time for clarity
-      newExpanded.add(nodeId);
-      setSelectedFlow(`${nodeType}:${nodeId}`);
+      // Set new filter
+      setSelectedFilter({ type: nodeType, value: nodeValue });
     }
-    setExpandedNodes(newExpanded);
   };
 
+  const clearFilter = () => {
+    setSelectedFilter(null);
+  };
+
+  const getFilteredData = () => {
+    if (!selectedFilter) return data;
+
+    return data.filter(item => {
+      switch (selectedFilter.type) {
+        case 'project':
+          return item.directorProject === selectedFilter.value;
+        case 'scmFeed':
+          return item.scmFeedname === selectedFilter.value;
+        case 'matchProcess':
+          return item.matchProcess === selectedFilter.value;
+        case 'scmSource':
+          return item.scmSource === selectedFilter.value;
+        case 'workflow':
+          return item.workflow === selectedFilter.value;
+        case 'state':
+          return item.state === selectedFilter.value;
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredData = getFilteredData();
+
   const getNodesByLevel = () => {
-    const projects = [...new Set(data.map(item => item.directorProject))];
-    const scmFeeds = [...new Set(data.map(item => item.scmFeedname))];
-    const matchProcesses = [...new Set(data.map(item => item.matchProcess))];
-    const scmSources = [...new Set(data.map(item => item.scmSource))];
-    const workflows = [...new Set(data.map(item => item.workflow))];
-    const states = [...new Set(data.map(item => item.state))];
+    const projects = [...new Set(filteredData.map(item => item.directorProject))];
+    const scmFeeds = [...new Set(filteredData.map(item => item.scmFeedname))];
+    const matchProcesses = [...new Set(filteredData.map(item => item.matchProcess))];
+    const scmSources = [...new Set(filteredData.map(item => item.scmSource))];
+    const workflows = [...new Set(filteredData.map(item => item.workflow))];
+    const states = [...new Set(filteredData.map(item => item.state))];
     
     return { projects, scmFeeds, matchProcesses, scmSources, workflows, states };
   };
@@ -53,23 +82,8 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
     return colors[type as keyof typeof colors][Math.abs(hash) % colors[type as keyof typeof colors].length];
   };
 
-  const getConnectedItems = (selectedNode: string, nodeType: string) => {
-    switch (nodeType) {
-      case 'project':
-        return data.filter(item => item.directorProject === selectedNode);
-      case 'scmFeed':
-        return data.filter(item => item.scmFeedname === selectedNode);
-      case 'matchProcess':
-        return data.filter(item => item.matchProcess === selectedNode);
-      case 'scmSource':
-        return data.filter(item => item.scmSource === selectedNode);
-      case 'workflow':
-        return data.filter(item => item.workflow === selectedNode);
-      case 'state':
-        return data.filter(item => item.state === selectedNode);
-      default:
-        return [];
-    }
+  const isNodeSelected = (nodeValue: string, nodeType: string) => {
+    return selectedFilter?.type === nodeType && selectedFilter?.value === nodeValue;
   };
 
   const { projects, scmFeeds, matchProcesses, scmSources, workflows, states } = getNodesByLevel();
@@ -78,9 +92,9 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
     <div className="space-y-3">
       <h4 className="font-semibold text-center text-slate-700 mb-4">{title}</h4>
       <div className="space-y-2">
-        {items.map((item, index) => {
-          const isExpanded = expandedNodes.has(item);
-          const itemCount = data
+        {items.map((item) => {
+          const isSelected = isNodeSelected(item, nodeType);
+          const itemCount = filteredData
             .filter(dataItem => {
               switch (nodeType) {
                 case 'project': return dataItem.directorProject === item;
@@ -95,52 +109,23 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
             .reduce((sum, dataItem) => sum + (dataItem.alertCount || 0), 0);
           
           return (
-            <div key={item} className="space-y-1">
-              <div
-                className={`${getNodeColor(item, nodeType)} text-white p-3 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer ${
-                  isExpanded ? 'ring-2 ring-white ring-opacity-50' : ''
-                }`}
-                style={{ 
-                  height: `${Math.max(40, Math.min(80, itemCount / 50))}px`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onClick={() => toggleNodeExpansion(item, nodeType)}
-              >
-                <div className="text-center">
-                  <div className="font-medium text-sm">{item}</div>
-                  <div className="text-xs opacity-90">{itemCount.toLocaleString()}</div>
-                </div>
+            <div
+              key={item}
+              className={`${getNodeColor(item, nodeType)} text-white p-3 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer ${
+                isSelected ? 'ring-4 ring-white ring-opacity-80 scale-105' : 'hover:scale-102'
+              }`}
+              style={{ 
+                height: `${Math.max(40, Math.min(80, itemCount / 50))}px`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onClick={() => handleNodeClick(item, nodeType)}
+            >
+              <div className="text-center">
+                <div className="font-medium text-sm">{item}</div>
+                <div className="text-xs opacity-90">{itemCount.toLocaleString()}</div>
               </div>
-              
-              {isExpanded && (
-                <div className="ml-4 space-y-1 bg-slate-50 p-2 rounded border-l-2 border-slate-300">
-                  {getConnectedItems(item, nodeType).slice(0, 5).map((connectedItem, idx) => (
-                    <div key={idx} className="text-xs text-slate-600 bg-white p-2 rounded">
-                      <div className="grid grid-cols-2 gap-1">
-                        <span className="font-medium">Feed:</span>
-                        <span>{connectedItem.scmFeedname}</span>
-                        <span className="font-medium">Match:</span>
-                        <span>{connectedItem.matchProcess}</span>
-                        <span className="font-medium">Source:</span>
-                        <span>{connectedItem.scmSource}</span>
-                        <span className="font-medium">Workflow:</span>
-                        <span>{connectedItem.workflow}</span>
-                        <span className="font-medium">State:</span>
-                        <span>{connectedItem.state}</span>
-                        <span className="font-medium">Alerts:</span>
-                        <span>{connectedItem.alertCount || 0}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {getConnectedItems(item, nodeType).length > 5 && (
-                    <div className="text-xs text-slate-500 text-center">
-                      +{getConnectedItems(item, nodeType).length - 5} more...
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           );
         })}
@@ -151,10 +136,29 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
   return (
     <div className="space-y-4">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-slate-900 mb-2">Interactive Sankey Flow Diagram</h3>
-        <p className="text-sm text-slate-600">
-          Click on any node to see its connections and flow details. Each column represents a stage in the workflow pipeline.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Interactive Sankey Flow Diagram</h3>
+            <p className="text-sm text-slate-600">
+              Click on any node to filter the flow and see only paths passing through that node.
+            </p>
+          </div>
+          {selectedFilter && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">
+                Filtered by: <span className="font-medium">{selectedFilter.value}</span>
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={clearFilter}
+                className="text-xs"
+              >
+                Clear Filter
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <Card className="p-6">
@@ -168,13 +172,16 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
         </div>
       </Card>
 
-      {selectedFlow && (
+      {selectedFilter && (
         <Card className="p-4">
           <h4 className="font-semibold text-slate-900 mb-3">
-            Selected Flow: {selectedFlow.split(':')[1]}
+            Filtered Flow: {selectedFilter.value}
           </h4>
-          <div className="text-sm text-slate-600">
-            Click on nodes to explore their connections and see detailed flow information.
+          <div className="text-sm text-slate-600 mb-2">
+            Showing {filteredData.length} workflow(s) that pass through this node.
+          </div>
+          <div className="text-xs text-slate-500">
+            Total alerts in filtered flows: {filteredData.reduce((sum, item) => sum + (item.alertCount || 0), 0).toLocaleString()}
           </div>
         </Card>
       )}
