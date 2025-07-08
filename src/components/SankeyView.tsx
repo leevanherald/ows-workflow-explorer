@@ -8,46 +8,73 @@ interface SankeyViewProps {
   data: WorkflowData[];
 }
 
-const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
-  const [selectedFilter, setSelectedFilter] = useState<{
-    type: string;
-    value: string;
-  } | null>(null);
+interface SelectedFilters {
+  project: string[];
+  scmFeed: string[];
+  matchProcess: string[];
+  scmSource: string[];
+  workflow: string[];
+  state: string[];
+}
 
-  const handleNodeClick = (nodeValue: string, nodeType: string) => {
-    if (selectedFilter?.type === nodeType && selectedFilter?.value === nodeValue) {
-      // If clicking the same node, clear the filter
-      setSelectedFilter(null);
-    } else {
-      // Set new filter
-      setSelectedFilter({ type: nodeType, value: nodeValue });
-    }
+const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
+  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({
+    project: [],
+    scmFeed: [],
+    matchProcess: [],
+    scmSource: [],
+    workflow: [],
+    state: []
+  });
+
+  const handleNodeClick = (nodeValue: string, nodeType: keyof SelectedFilters) => {
+    setSelectedFilters(prev => {
+      const currentSelections = prev[nodeType];
+      const isSelected = currentSelections.includes(nodeValue);
+      
+      return {
+        ...prev,
+        [nodeType]: isSelected 
+          ? currentSelections.filter(item => item !== nodeValue)
+          : [...currentSelections, nodeValue]
+      };
+    });
   };
 
-  const clearFilter = () => {
-    setSelectedFilter(null);
+  const clearAllFilters = () => {
+    setSelectedFilters({
+      project: [],
+      scmFeed: [],
+      matchProcess: [],
+      scmSource: [],
+      workflow: [],
+      state: []
+    });
+  };
+
+  const hasActiveFilters = () => {
+    return Object.values(selectedFilters).some(filters => filters.length > 0);
   };
 
   const getFilteredData = () => {
-    if (!selectedFilter) return data;
+    if (!hasActiveFilters()) return data;
 
     return data.filter(item => {
-      switch (selectedFilter.type) {
-        case 'project':
-          return item.directorProject === selectedFilter.value;
-        case 'scmFeed':
-          return item.scmFeedname === selectedFilter.value;
-        case 'matchProcess':
-          return item.matchProcess === selectedFilter.value;
-        case 'scmSource':
-          return item.scmSource === selectedFilter.value;
-        case 'workflow':
-          return item.workflow === selectedFilter.value;
-        case 'state':
-          return item.state === selectedFilter.value;
-        default:
-          return true;
-      }
+      const matchesProject = selectedFilters.project.length === 0 || 
+        selectedFilters.project.includes(item.directorProject);
+      const matchesScmFeed = selectedFilters.scmFeed.length === 0 || 
+        selectedFilters.scmFeed.includes(item.scmFeedname);
+      const matchesMatchProcess = selectedFilters.matchProcess.length === 0 || 
+        selectedFilters.matchProcess.includes(item.matchProcess);
+      const matchesScmSource = selectedFilters.scmSource.length === 0 || 
+        selectedFilters.scmSource.includes(item.scmSource);
+      const matchesWorkflow = selectedFilters.workflow.length === 0 || 
+        selectedFilters.workflow.includes(item.workflow);
+      const matchesState = selectedFilters.state.length === 0 || 
+        selectedFilters.state.includes(item.state);
+
+      return matchesProject && matchesScmFeed && matchesMatchProcess && 
+             matchesScmSource && matchesWorkflow && matchesState;
     });
   };
 
@@ -82,15 +109,26 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
     return colors[type as keyof typeof colors][Math.abs(hash) % colors[type as keyof typeof colors].length];
   };
 
-  const isNodeSelected = (nodeValue: string, nodeType: string) => {
-    return selectedFilter?.type === nodeType && selectedFilter?.value === nodeValue;
+  const isNodeSelected = (nodeValue: string, nodeType: keyof SelectedFilters) => {
+    return selectedFilters[nodeType].includes(nodeValue);
+  };
+
+  const getSelectedFiltersCount = () => {
+    return Object.values(selectedFilters).reduce((total, filters) => total + filters.length, 0);
   };
 
   const { projects, scmFeeds, matchProcesses, scmSources, workflows, states } = getNodesByLevel();
 
-  const renderColumn = (title: string, items: string[], nodeType: string) => (
+  const renderColumn = (title: string, items: string[], nodeType: keyof SelectedFilters) => (
     <div className="space-y-3">
-      <h4 className="font-semibold text-center text-slate-700 mb-4">{title}</h4>
+      <h4 className="font-semibold text-center text-slate-700 mb-4">
+        {title}
+        {selectedFilters[nodeType].length > 0 && (
+          <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+            {selectedFilters[nodeType].length}
+          </span>
+        )}
+      </h4>
       <div className="space-y-2">
         {items.map((item) => {
           const isSelected = isNodeSelected(item, nodeType);
@@ -112,7 +150,7 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
             <div
               key={item}
               className={`${getNodeColor(item, nodeType)} text-white p-3 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer ${
-                isSelected ? 'ring-4 ring-white ring-opacity-80 scale-105' : 'hover:scale-102'
+                isSelected ? 'ring-4 ring-white ring-opacity-80 scale-105 shadow-lg' : 'hover:scale-102'
               }`}
               style={{ 
                 height: `${Math.max(40, Math.min(80, itemCount / 50))}px`,
@@ -140,21 +178,21 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Interactive Sankey Flow Diagram</h3>
             <p className="text-sm text-slate-600">
-              Click on any node to filter the flow and see only paths passing through that node.
+              Click on nodes to select multiple filters across columns. Selected flows must pass through all selected nodes.
             </p>
           </div>
-          {selectedFilter && (
+          {hasActiveFilters() && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-600">
-                Filtered by: <span className="font-medium">{selectedFilter.value}</span>
+                Active filters: <span className="font-medium">{getSelectedFiltersCount()}</span>
               </span>
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={clearFilter}
+                onClick={clearAllFilters}
                 className="text-xs"
               >
-                Clear Filter
+                Clear All ({getSelectedFiltersCount()})
               </Button>
             </div>
           )}
@@ -172,16 +210,36 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
         </div>
       </Card>
 
-      {selectedFilter && (
+      {hasActiveFilters() && (
         <Card className="p-4">
           <h4 className="font-semibold text-slate-900 mb-3">
-            Filtered Flow: {selectedFilter.value}
+            Filtered Flow Results
           </h4>
-          <div className="text-sm text-slate-600 mb-2">
-            Showing {filteredData.length} workflow(s) that pass through this node.
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            {Object.entries(selectedFilters).map(([type, filters]) => 
+              filters.length > 0 && (
+                <div key={type} className="space-y-1">
+                  <div className="font-medium text-slate-700 capitalize">
+                    {type.replace(/([A-Z])/g, ' $1').trim()}:
+                  </div>
+                  <div className="text-slate-600">
+                    {filters.map((filter, index) => (
+                      <span key={filter} className="inline-block bg-slate-100 px-2 py-1 rounded text-xs mr-1 mb-1">
+                        {filter}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
           </div>
-          <div className="text-xs text-slate-500">
-            Total alerts in filtered flows: {filteredData.reduce((sum, item) => sum + (item.alertCount || 0), 0).toLocaleString()}
+          <div className="mt-4 pt-3 border-t">
+            <div className="text-sm text-slate-600 mb-2">
+              Showing {filteredData.length} workflow(s) that match all selected filters.
+            </div>
+            <div className="text-xs text-slate-500">
+              Total alerts in filtered flows: {filteredData.reduce((sum, item) => sum + (item.alertCount || 0), 0).toLocaleString()}
+            </div>
           </div>
         </Card>
       )}
