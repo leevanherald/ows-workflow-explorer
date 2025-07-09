@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Search, Filter, Download, TreePine, GitBranch, Table, Calendar as CalendarIcon, Network } from 'lucide-react';
+import { Search, Filter, Download, TreePine, GitBranch, Table, Calendar as CalendarIcon, Network, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +13,10 @@ import TreeView from '@/components/TreeView';
 import FlowchartView from '@/components/FlowchartView';
 import TabularView from '@/components/TabularView';
 import SankeyView from '@/components/SankeyView';
+import ReportsView from '@/components/ReportsView';
 import { mockWorkflowData } from '@/data/mockData';
 
-type ViewType = 'tree' | 'flowchart' | 'table' | 'sankey';
+type ViewType = 'tree' | 'flowchart' | 'table' | 'sankey' | 'reports';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ViewType>('flowchart');
@@ -83,6 +85,8 @@ const Index = () => {
         return <TabularView data={filteredData} />;
       case 'sankey':
         return <SankeyView data={filteredData} />;
+      case 'reports':
+        return <ReportsView data={filteredData} />;
       default:
         return <FlowchartView data={filteredData} />;
     }
@@ -145,36 +149,46 @@ const Index = () => {
                   <Table className="w-4 h-4" />
                   Table View
                 </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[240px] justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a week</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  Export Data
+                <Button
+                  variant={activeView === 'reports' ? 'default' : 'outline'}
+                  onClick={() => setActiveView('reports')}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Reports
                 </Button>
               </div>
+              {activeView !== 'reports' && (
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[240px] justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a week</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={handleDateSelect}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    Export Data
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           {(activeView === 'tree' || activeView === 'table') && (
@@ -235,35 +249,37 @@ const Index = () => {
           )}
         </div>
 
-        {/* Stats Footer */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{filteredData.length}</div>
-              <div className="text-sm text-slate-600">Total Workflows</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{uniqueProjects.length}</div>
-              <div className="text-sm text-slate-600">Director Projects</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">{uniqueStates.length}</div>
-              <div className="text-sm text-slate-600">Unique States</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {[...new Set(mockWorkflowData.map(item => item.workflow))].length}
-              </div>
-              <div className="text-sm text-slate-600">Workflow Types</div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Stats Footer - Hide for Reports view */}
+        {activeView !== 'reports' && (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">{filteredData.length}</div>
+                <div className="text-sm text-slate-600">Total Workflows</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">{uniqueProjects.length}</div>
+                <div className="text-sm text-slate-600">Director Projects</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-orange-600">{uniqueStates.length}</div>
+                <div className="text-sm text-slate-600">Unique States</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {[...new Set(mockWorkflowData.map(item => item.workflow))].length}
+                </div>
+                <div className="text-sm text-slate-600">Workflow Types</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
