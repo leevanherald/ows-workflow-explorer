@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Eye, EyeOff, Shield, Lock, User } from 'lucide-react';
 import { 
@@ -26,7 +25,7 @@ const Login = () => {
 
   return (
     <HeroUIProvider>
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 dark:from-slate-950 dark:via-blue-950 dark:to-slate-900 relative overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
         {/* Animated background pattern */}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10" />
@@ -36,7 +35,7 @@ const Login = () => {
         <div className="absolute top-20 left-20 w-32 h-32 bg-blue-500/10 rounded-full blur-xl animate-pulse" />
         <div className="absolute bottom-20 right-20 w-48 h-48 bg-purple-500/10 rounded-full blur-xl animate-pulse delay-1000" />
         
-        <Card className="w-full max-w-md bg-background/95 dark:bg-card/95 backdrop-blur-md shadow-2xl border-0">
+        <Card className="w-full max-w-md bg-white/95 backdrop-blur-md shadow-2xl border-0">
           <CardBody className="p-8">
             {/* Logo and Header */}
             <div className="text-center mb-8">
@@ -47,13 +46,13 @@ const Login = () => {
                   className="h-12 w-auto filter brightness-0 invert"
                 />
               </div>
-              <h1 className="text-2xl font-bold text-foreground mb-2">
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">
                 OWS Workflow Explorer
               </h1>
-              <p className="text-muted-foreground text-sm mb-2">
+              <p className="text-gray-600 text-sm mb-2">
                 Secure access to your workflow management system
               </p>
-              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 text-gray-500">
                 <Shield size={14} />
                 <span className="text-xs">Enterprise-grade security</span>
               </div>
@@ -67,12 +66,12 @@ const Login = () => {
                 placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                startContent={<User className="text-muted-foreground" size={18} />}
+                startContent={<User className="text-gray-400" size={18} />}
                 variant="bordered"
                 size="lg"
                 classNames={{
-                  input: "text-foreground",
-                  inputWrapper: "border-border hover:border-ring focus-within:border-ring"
+                  input: "text-gray-700",
+                  inputWrapper: "border-gray-300 hover:border-blue-400 focus-within:border-blue-500"
                 }}
                 isRequired
               />
@@ -83,12 +82,12 @@ const Login = () => {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                startContent={<Lock className="text-muted-foreground" size={18} />}
+                startContent={<Lock className="text-gray-400" size={18} />}
                 endContent={
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-muted-foreground hover:text-foreground focus:outline-none"
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -96,8 +95,8 @@ const Login = () => {
                 variant="bordered"
                 size="lg"
                 classNames={{
-                  input: "text-foreground",
-                  inputWrapper: "border-border hover:border-ring focus-within:border-ring"
+                  input: "text-gray-700",
+                  inputWrapper: "border-gray-300 hover:border-blue-400 focus-within:border-blue-500"
                 }}
                 isRequired
               />
@@ -108,7 +107,7 @@ const Login = () => {
                   onValueChange={setRememberMe}
                   size="sm"
                   classNames={{
-                    label: "text-muted-foreground text-sm"
+                    label: "text-gray-600 text-sm"
                   }}
                 >
                   Keep me signed in
@@ -116,7 +115,7 @@ const Login = () => {
                 <Link 
                   href="#" 
                   size="sm" 
-                  className="text-primary hover:text-primary/80 font-medium"
+                  className="text-blue-600 hover:text-blue-700 font-medium"
                 >
                   Need help?
                 </Link>
@@ -135,10 +134,10 @@ const Login = () => {
 
             {/* Footer */}
             <div className="text-center space-y-2">
-              <p className="text-muted-foreground text-sm font-medium">
+              <p className="text-gray-600 text-sm font-medium">
                 Authorized personnel only
               </p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-gray-500 text-xs">
                 For technical support, contact your system administrator
               </p>
             </div>

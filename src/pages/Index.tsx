@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, Filter, Download, TreePine, GitBranch, Table, Calendar as CalendarIcon, Network } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,7 +89,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="container mx-auto p-6 max-w-7xl flex-1 flex flex-col">
         {/* Header */}
         <div className="mb-6">
@@ -98,11 +97,11 @@ const Index = () => {
             <img 
               src="/lovable-uploads/07918255-54de-4fea-b309-b3562bb915c4.png" 
               alt="Barclays Logo" 
-              className="h-12 w-auto dark:filter dark:brightness-0 dark:invert"
+              className="h-12 w-auto"
             />
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2">OWS Workflow Explorer</h1>
-              <p className="text-muted-foreground text-lg">
+              <h1 className="text-4xl font-bold text-slate-900 mb-2">OWS Workflow Explorer</h1>
+              <p className="text-slate-600 text-lg">
                 Visualize and analyze end-to-end alert workflows from Director Projects to Final States
               </p>
             </div>
@@ -110,7 +109,7 @@ const Index = () => {
         </div>
 
         {/* Controls */}
-        <Card className="mb-6 bg-card border-border">
+        <Card className="mb-6">
           <CardHeader>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -183,7 +182,7 @@ const Index = () => {
               <div className="flex flex-col lg:flex-row gap-4">
                 <div className="flex-1">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <Input
                       placeholder="Search workflows, feeds, or states..."
                       value={searchTerm}
@@ -224,11 +223,11 @@ const Index = () => {
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {activeView === 'flowchart' ? (
-            <div className="flex-1 bg-card rounded-lg shadow-sm p-6 border border-border">
+            <div className="flex-1 bg-white rounded-lg shadow-sm p-6">
               {renderView()}
             </div>
           ) : (
-            <Card className="flex-1 flex flex-col bg-card border-border">
+            <Card className="flex-1 flex flex-col">
               <CardContent className="p-6 flex-1">
                 {renderView()}
               </CardContent>
@@ -238,30 +237,30 @@ const Index = () => {
 
         {/* Stats Footer */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-card border-border">
+          <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-blue-600">{filteredData.length}</div>
-              <div className="text-sm text-muted-foreground">Total Workflows</div>
+              <div className="text-sm text-slate-600">Total Workflows</div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-border">
+          <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-green-600">{uniqueProjects.length}</div>
-              <div className="text-sm text-muted-foreground">Director Projects</div>
+              <div className="text-sm text-slate-600">Director Projects</div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-border">
+          <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-orange-600">{uniqueStates.length}</div>
-              <div className="text-sm text-muted-foreground">Unique States</div>
+              <div className="text-sm text-slate-600">Unique States</div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-border">
+          <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-purple-600">
                 {[...new Set(mockWorkflowData.map(item => item.workflow))].length}
               </div>
-              <div className="text-sm text-muted-foreground">Workflow Types</div>
+              <div className="text-sm text-slate-600">Workflow Types</div>
             </CardContent>
           </Card>
         </div>
