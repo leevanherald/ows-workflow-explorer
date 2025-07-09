@@ -1,9 +1,10 @@
-
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ChevronDown, ChevronRight, Shield, AlertTriangle, CheckCircle, Download } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WorkflowData } from '@/data/mockData';
+import html2canvas from 'html2canvas';
 
 interface TreeViewProps {
   data: WorkflowData[];
@@ -21,6 +22,26 @@ interface TreeNode {
 
 const TreeView: React.FC<TreeViewProps> = ({ data }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const treeRef = useRef<HTMLDivElement>(null);
+
+  const downloadImage = async () => {
+    if (treeRef.current) {
+      try {
+        const canvas = await html2canvas(treeRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+        });
+        
+        const link = document.createElement('a');
+        link.download = `tree-view-${new Date().toISOString().split('T')[0]}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      } catch (error) {
+        console.error('Error generating image:', error);
+      }
+    }
+  };
 
   const buildTree = (data: WorkflowData[]): TreeNode[] => {
     const tree: TreeNode[] = [];
@@ -234,24 +255,32 @@ const TreeView: React.FC<TreeViewProps> = ({ data }) => {
 
   return (
     <div className="space-y-2">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-slate-900 mb-2">Workflow Hierarchy</h3>
-        <p className="text-sm text-slate-600">
-          Click to expand/collapse levels. Navigate from Director Projects to Final States.
-        </p>
+      <div className="mb-4 flex justify-between items-start">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Workflow Hierarchy</h3>
+          <p className="text-sm text-slate-600">
+            Click to expand/collapse levels. Navigate from Director Projects to Final States.
+          </p>
+        </div>
+        <Button onClick={downloadImage} variant="outline" className="flex items-center gap-2">
+          <Download className="w-4 h-4" />
+          Download Image
+        </Button>
       </div>
       
-      <Card className="p-4 max-h-[500px] overflow-y-auto">
-        {tree.length > 0 ? (
-          <div className="space-y-1">
-            {tree.map(node => renderNode(node))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-slate-500">
-            No workflow data matches your current filters.
-          </div>
-        )}
-      </Card>
+      <div ref={treeRef}>
+        <Card className="p-4 max-h-[500px] overflow-y-auto">
+          {tree.length > 0 ? (
+            <div className="space-y-1">
+              {tree.map(node => renderNode(node))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-slate-500">
+              No workflow data matches your current filters.
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 };

@@ -1,8 +1,9 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 import { WorkflowData } from '@/data/mockData';
+import html2canvas from 'html2canvas';
 
 interface SankeyViewProps {
   data: WorkflowData[];
@@ -26,6 +27,26 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
     workflow: [],
     state: []
   });
+  const sankeyRef = useRef<HTMLDivElement>(null);
+
+  const downloadImage = async () => {
+    if (sankeyRef.current) {
+      try {
+        const canvas = await html2canvas(sankeyRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+        });
+        
+        const link = document.createElement('a');
+        link.download = `sankey-view-${new Date().toISOString().split('T')[0]}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      } catch (error) {
+        console.error('Error generating image:', error);
+      }
+    }
+  };
 
   const handleNodeClick = (nodeValue: string, nodeType: keyof SelectedFilters) => {
     setSelectedFilters(prev => {
@@ -181,34 +202,42 @@ const SankeyView: React.FC<SankeyViewProps> = ({ data }) => {
               Click on nodes to select multiple filters across columns. Selected flows must pass through all selected nodes.
             </p>
           </div>
-          {hasActiveFilters() && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600">
-                Active filters: <span className="font-medium">{getSelectedFiltersCount()}</span>
-              </span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={clearAllFilters}
-                className="text-xs"
-              >
-                Clear All ({getSelectedFiltersCount()})
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Button onClick={downloadImage} variant="outline" className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Download Image
+            </Button>
+            {hasActiveFilters() && (
+              <>
+                <span className="text-sm text-slate-600">
+                  Active filters: <span className="font-medium">{getSelectedFiltersCount()}</span>
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={clearAllFilters}
+                  className="text-xs"
+                >
+                  Clear All ({getSelectedFiltersCount()})
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <Card className="p-6">
-        <div className="grid grid-cols-6 gap-4 h-[500px] overflow-y-auto">
-          {renderColumn('Director Projects', projects, 'project')}
-          {renderColumn('SCM Feed Names', scmFeeds, 'scmFeed')}
-          {renderColumn('Match Processes', matchProcesses, 'matchProcess')}
-          {renderColumn('SCM Sources', scmSources, 'scmSource')}
-          {renderColumn('Workflows', workflows, 'workflow')}
-          {renderColumn('Final States', states, 'state')}
-        </div>
-      </Card>
+      <div ref={sankeyRef}>
+        <Card className="p-6">
+          <div className="grid grid-cols-6 gap-4 h-[500px] overflow-y-auto">
+            {renderColumn('Director Projects', projects, 'project')}
+            {renderColumn('SCM Feed Names', scmFeeds, 'scmFeed')}
+            {renderColumn('Match Processes', matchProcesses, 'matchProcess')}
+            {renderColumn('SCM Sources', scmSources, 'scmSource')}
+            {renderColumn('Workflows', workflows, 'workflow')}
+            {renderColumn('Final States', states, 'state')}
+          </div>
+        </Card>
+      </div>
 
       {hasActiveFilters() && (
         <Card className="p-4">
