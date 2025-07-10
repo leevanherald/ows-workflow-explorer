@@ -41,6 +41,19 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
   }, [data]);
 
+  // Define getNodeColor function before useMemo
+  const getNodeColor = useCallback((type: string): string => {
+    const colors = {
+      project: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      feed: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      source: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      match: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      workflow: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      state: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    };
+    return colors[type as keyof typeof colors] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+  }, []);
+
   // Build flowchart data using React Flow format
   const { initialNodes, initialEdges } = useMemo(() => {
     console.log('🔄 Building React Flow data...', { selectedProject, dataLength: data.length });
@@ -140,7 +153,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [data, selectedProject]);
+  }, [data, selectedProject, getNodeColor]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -150,18 +163,6 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
     setNodes(initialNodes);
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
-
-  const getNodeColor = (type: string): string => {
-    const colors = {
-      project: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      feed: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      source: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      match: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      workflow: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      state: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-    };
-    return colors[type as keyof typeof colors] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-  };
 
   const onLayoutNodes = useCallback(() => {
     // Auto-layout functionality
@@ -225,7 +226,6 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             attributionPosition="bottom-left"
           >
             <Background 
-              variant="dots" 
               gap={20} 
               size={1} 
               color="rgba(255, 255, 255, 0.1)" 
