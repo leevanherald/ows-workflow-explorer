@@ -1,56 +1,66 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { WorkflowData } from '@/data/mockData';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { 
+  ReactFlow, 
+  Node, 
+  Edge, 
+  Controls, 
+  MiniMap, 
+  Background, 
+  useNodesState, 
+  useEdgesState,
+  MarkerType,
+  Position
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import './FlowchartView.css';
 
 interface FlowchartViewProps {
   data: WorkflowData[];
 }
 
-interface FlowNode {
-  id: string;
-  label: string;
-  type: 'project' | 'feed' | 'source' | 'match' | 'workflow' | 'state';
-  count: number;
-  level: number;
-  parentId?: string;
-  expanded: boolean;
-  x: number;
-  y: number;
+interface FlowNode extends Node {
+  data: {
+    label: string;
+    type: 'project' | 'feed' | 'source' | 'match' | 'workflow' | 'state';
+    count: number;
+    level: number;
+    originalId: string;
+  };
 }
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   // Get unique projects for selection
   const projects = useMemo(() => {
     return [...new Set(data.map(item => item.directorProject))].filter(Boolean);
   }, [data]);
 
-  // Build flowchart data
-  const flowchartData = useMemo(() => {
-    console.log('🔄 Building flowchart data...', { selectedProject, dataLength: data.length });
+  // Build flowchart data using React Flow format
+  const { initialNodes, initialEdges } = useMemo(() => {
+    console.log('🔄 Building React Flow data...', { selectedProject, dataLength: data.length });
     
     let filteredData = selectedProject === 'all' 
       ? data 
       : data.filter(item => item.directorProject === selectedProject);
 
     if (filteredData.length === 0) {
-      return { nodes: [], connections: [] };
+      return { initialNodes: [], initialEdges: [] };
     }
 
     const nodes: FlowNode[] = [];
-    const connections: { from: string; to: string }[] = [];
+    const edges: Edge[] = [];
     const nodeMap = new Map<string, FlowNode>();
 
-    // Track positions
+    // Positioning configuration
+    const levelWidth = 350;
+    const nodeHeight = 120;
     const levelCounts = new Map<number, number>();
-    const levelWidth = 300;
-    const nodeHeight = 100;
-    const verticalSpacing = 120;
 
     filteredData.forEach(item => {
       const hierarchy = [
@@ -68,83 +78,116 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
           levelCounts.set(nodeData.level, currentLevelCount + 1);
 
           const node: FlowNode = {
-            ...nodeData,
-            count: 0,
-            expanded: false,
-            x: nodeData.level * levelWidth,
-            y: currentLevelCount * verticalSpacing
+            id: nodeData.id,
+            type: 'default',
+            position: { 
+              x: nodeData.level * levelWidth, 
+              y: currentLevelCount * nodeHeight 
+            },
+            data: {
+              label: nodeData.label,
+              type: nodeData.type,
+              count: 0,
+              level: nodeData.level,
+              originalId: nodeData.id
+            },
+            sourcePosition: Position.Right,
+            targetPosition: Position.Left,
+            style: {
+              background: getNodeColor(nodeData.type),
+              border: '2px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '12px',
+              color: 'white',
+              fontWeight: 'bold',
+              width: 200,
+              height: 80,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              fontSize: '12px',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+            }
           };
 
           nodeMap.set(nodeData.id, node);
           nodes.push(node);
 
-          // Add connection to parent
+          // Add edge to parent
           if (nodeData.parentId && index > 0) {
-            connections.push({
-              from: nodeData.parentId,
-              to: nodeData.id
+            edges.push({
+              id: `edge-${nodeData.parentId}-${nodeData.id}`,
+              source: nodeData.parentId,
+              target: nodeData.id,
+              type: 'smoothstep',
+              animated: true,
+              style: { stroke: '#64748b', strokeWidth: 3 },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#64748b',
+              },
             });
           }
         }
 
         // Update count
         const node = nodeMap.get(nodeData.id)!;
-        node.count += item.alertCount || 1;
+        node.data.count += item.alertCount || 1;
+        // Update node label to include count
+        node.data.label = `${nodeData.label}\n(${node.data.count} alerts)`;
       });
     });
 
-    return { nodes, connections };
+    return { initialNodes: nodes, initialEdges: edges };
   }, [data, selectedProject]);
 
-  const toggleNode = (nodeId: string) => {
-    setExpandedNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  };
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Update nodes when data changes
+  React.useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   const getNodeColor = (type: string): string => {
     const colors = {
-      project: 'bg-gradient-to-r from-purple-500 to-blue-600',
-      feed: 'bg-gradient-to-r from-pink-500 to-red-500',
-      source: 'bg-gradient-to-r from-blue-400 to-cyan-400',
-      match: 'bg-gradient-to-r from-green-400 to-emerald-500',
-      workflow: 'bg-gradient-to-r from-yellow-400 to-orange-500',
-      state: 'bg-gradient-to-r from-teal-400 to-blue-500',
+      project: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      feed: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      source: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      match: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      workflow: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      state: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
     };
-    return colors[type as keyof typeof colors] || 'bg-gray-500';
+    return colors[type as keyof typeof colors] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
   };
 
-  const isNodeVisible = (node: FlowNode): boolean => {
-    if (node.level === 0) return true;
-    if (!node.parentId) return true;
-    
-    return expandedNodes.has(node.parentId) && isNodeVisible(flowchartData.nodes.find(n => n.id === node.parentId)!);
-  };
-
-  const visibleNodes = flowchartData.nodes.filter(isNodeVisible);
-  const visibleConnections = flowchartData.connections.filter(conn => 
-    visibleNodes.some(n => n.id === conn.from) && visibleNodes.some(n => n.id === conn.to)
-  );
+  const onLayoutNodes = useCallback(() => {
+    // Auto-layout functionality
+    const layoutedNodes = nodes.map((node, index) => ({
+      ...node,
+      position: {
+        x: (node.data.level || 0) * 350,
+        y: index * 120
+      }
+    }));
+    setNodes(layoutedNodes);
+  }, [nodes, setNodes]);
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <div className="p-6 bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50">
         <h3 className="text-2xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          Interactive Network Workflow
+          Interactive Workflow Flowchart
         </h3>
         <div className="flex items-center gap-4">
           <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-64 bg-slate-700/50 border-slate-600 text-white backdrop-blur-sm z-50">
+            <SelectTrigger className="w-64 bg-slate-700/50 border-slate-600 text-white backdrop-blur-sm">
               <SelectValue placeholder="Select a project" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-700 border-slate-600 z-50">
+            <SelectContent className="bg-slate-700 border-slate-600">
               <SelectItem value="all" className="text-white hover:bg-slate-600">All Projects</SelectItem>
               {projects.map(project => (
                 <SelectItem key={project} value={project} className="text-white hover:bg-slate-600">
@@ -153,101 +196,60 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               ))}
             </SelectContent>
           </Select>
+          <Button 
+            onClick={onLayoutNodes}
+            variant="outline"
+            className="bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600"
+          >
+            Auto Layout
+          </Button>
           <div className="text-sm text-slate-300">
-            Click on nodes to expand the workflow
+            Drag nodes to rearrange • Zoom and pan to explore • Use controls on bottom-right
           </div>
         </div>
       </div>
 
-      {/* Flowchart Content */}
-      <div className="flex-1 overflow-auto p-6">
-        {visibleNodes.length > 0 ? (
-          <div className="relative" style={{ width: '2000px', height: '500px' }}>
-            {/* Connections with arrows */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
-              <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="12"
-                  markerHeight="8"
-                  refX="11"
-                  refY="4"
-                  orient="auto"
-                  markerUnits="strokeWidth"
-                >
-                  <polygon
-                    points="0 0, 12 4, 0 8"
-                    fill="#64748b"
-                    stroke="#64748b"
-                    strokeWidth="1"
-                  />
-                </marker>
-              </defs>
-              {visibleConnections.map((conn, index) => {
-                const fromNode = visibleNodes.find(n => n.id === conn.from);
-                const toNode = visibleNodes.find(n => n.id === conn.to);
-                if (!fromNode || !toNode) return null;
-
-                const fromX = fromNode.x + 192; // Node width (48 * 4 = 192px)
-                const fromY = fromNode.y + 48; // Half node height (24 * 2 = 48px)
-                const toX = toNode.x;
-                const toY = toNode.y + 48;
-
-                return (
-                  <line
-                    key={`${conn.from}-${conn.to}-${index}`}
-                    x1={fromX}
-                    y1={fromY}
-                    x2={toX}
-                    y2={toY}
-                    stroke="#64748b"
-                    strokeWidth="3"
-                    markerEnd="url(#arrowhead)"
-                    className="transition-all duration-200 hover:stroke-blue-400"
-                  />
-                );
-              })}
-            </svg>
-            {/* Nodes */}
-            {visibleNodes.map(node => {
-              const hasChildren = flowchartData.connections.some(conn => conn.from === node.id);
-              const isExpanded = expandedNodes.has(node.id);
-
-              return (
-                <div
-                  key={node.id}
-                  className={`absolute cursor-pointer transition-all duration-200 hover:shadow-lg ${getNodeColor(node.type)} text-white rounded-lg p-4 w-48 h-24`}
-                  style={{ 
-                    left: node.x, 
-                    top: node.y,
-                    zIndex: 2
-                  }}
-                  onClick={() => hasChildren && toggleNode(node.id)}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    {hasChildren && (
-                      <div className="flex-shrink-0">
-                        {isExpanded ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
-                      </div>
-                    )}
-                    <div className="font-semibold text-sm truncate flex-1">
-                      {node.label}
-                    </div>
-                  </div>
-                  <div className="text-xs opacity-90">
-                    {node.count} alerts
-                  </div>
-                  <div className="text-xs opacity-75 capitalize mt-1">
-                    {node.type}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* React Flow Content */}
+      <div className="flex-1">
+        {nodes.length > 0 ? (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            fitView
+            className="react-flow-dark-theme"
+            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+            minZoom={0.2}
+            maxZoom={2}
+            attributionPosition="bottom-left"
+          >
+            <Background 
+              variant="dots" 
+              gap={20} 
+              size={1} 
+              color="rgba(255, 255, 255, 0.1)" 
+            />
+            <Controls 
+              position="bottom-right"
+              className="react-flow__controls"
+            />
+            <MiniMap 
+              position="top-right"
+              className="react-flow__minimap"
+              nodeColor={(node) => {
+                const colors = {
+                  project: '#667eea',
+                  feed: '#f093fb',
+                  source: '#4facfe',
+                  match: '#43e97b',
+                  workflow: '#fa709a',
+                  state: '#a8edea',
+                };
+                return colors[node.data.type as keyof typeof colors] || '#667eea';
+              }}
+            />
+          </ReactFlow>
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-white text-lg">
@@ -259,7 +261,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
 
       {/* Legend */}
       <div className="p-6 bg-slate-800/50 backdrop-blur-sm border-t border-slate-700/50">
-        <h4 className="font-semibold text-white mb-4">Legend</h4>
+        <h4 className="font-semibold text-white mb-4">Node Types</h4>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
             { type: 'project', label: 'Director Projects' },
@@ -270,7 +272,10 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             { type: 'state', label: 'End States' },
           ].map(({ type, label }) => (
             <div key={type} className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/30 backdrop-blur-sm">
-              <div className={`w-4 h-4 rounded ${getNodeColor(type)}`}></div>
+              <div 
+                className="w-4 h-4 rounded" 
+                style={{ background: getNodeColor(type) }}
+              ></div>
               <span className="text-sm text-slate-300 font-medium">{label}</span>
             </div>
           ))}
