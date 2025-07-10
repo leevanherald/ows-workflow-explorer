@@ -93,8 +93,8 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <div className="container mx-auto p-6 max-w-7xl flex-1 flex flex-col">
+    <div className="min-h-screen ">
+      <div className="container mx-auto p-6 max-w-full ">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">

@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { WorkflowData } from '@/data/mockData';
+import { useReactFlow } from '@xyflow/react';
+
 import { 
   ReactFlow, 
   Node, 
@@ -35,6 +37,8 @@ interface FlowNode extends Node {
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
+
+  
 
   // Get unique projects for selection
   const projects = useMemo(() => {
@@ -113,7 +117,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               color: 'white',
               fontWeight: 'bold',
               width: 200,
-              height: 80,
+              height: 100,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -211,7 +215,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
       </div>
 
       {/* React Flow Content */}
-      <div className="flex-1">
+      <div  style={{height:1000,width:1980}}>
         {nodes.length > 0 ? (
           <ReactFlow
             nodes={nodes}
@@ -220,8 +224,8 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
             onEdgesChange={onEdgesChange}
             fitView
             className="react-flow-dark-theme"
-            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-            minZoom={0.2}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
+            minZoom={0.6}
             maxZoom={2}
             attributionPosition="bottom-left"
           >
