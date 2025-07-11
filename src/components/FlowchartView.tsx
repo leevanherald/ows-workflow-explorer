@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,8 @@ import {
   useNodesState, 
   useEdgesState,
   MarkerType,
-  Position
+  Position,
+  useReactFlow
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './FlowchartView.css';
@@ -35,6 +36,29 @@ interface FlowNode extends Node {
     onClick?: () => void;
   };
 }
+
+// Component to handle auto-zoom functionality
+const AutoZoomHandler: React.FC<{ nodes: FlowNode[]; selectedProject: string }> = ({ nodes, selectedProject }) => {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    if (nodes.length > 0) {
+      // Use a timeout to ensure nodes are rendered before fitting view
+      const timer = setTimeout(() => {
+        fitView({ 
+          padding: 0.2,
+          duration: 800,
+          minZoom: 0.4,
+          maxZoom: 1.2
+        });
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [nodes.length, selectedProject, fitView]);
+
+  return null;
+};
 
 const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
@@ -349,6 +373,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
                 return colors[node.data.type as keyof typeof colors] || '#667eea';
               }}
             />
+            <AutoZoomHandler nodes={nodes} selectedProject={selectedProject} />
           </ReactFlow>
         ) : (
           <div className="flex items-center justify-center h-full">
