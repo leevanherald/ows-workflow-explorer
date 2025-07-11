@@ -223,7 +223,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
               alignItems: 'center',
               justifyContent: 'center',
               textAlign: 'center',
-              fontSize: '11px',
+              fontSize: '18px',
               backdropFilter: 'blur(8px)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
               cursor: nodeData.isClickable ? 'pointer' : 'default',
@@ -264,7 +264,7 @@ const FlowchartView: React.FC<FlowchartViewProps> = ({ data }) => {
         const baseLabel = nodeData.label.split('\n')[0];
         const expansionIndicator = nodeData.label.includes('▼') || nodeData.label.includes('▶') ? 
           '\n' + nodeData.label.split('\n').slice(1).join('\n') : '';
-        node.data.label = `${baseLabel}\n(${node.data.count} alerts)${expansionIndicator}`;
+        // node.data.label = `${baseLabel}\n(${node.data.count} alerts)${expansionIndicator}`;
       });
     });
 
